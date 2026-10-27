@@ -1,6 +1,6 @@
 // Офлайн-режим: сначала сеть, если её нет — кэш.
 // При изменениях сайта поменяй версию, чтобы старый кэш удалился.
-const CACHE = "slovencina-v1";
+const CACHE = "slovencina-v2";
 const FILES = [
   "./", "index.html", "css/style.css", "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png",
   "js/app.js", "js/data.js", "js/grammar.js", "js/store.js", "js/cloud.js", "js/session.js",
