@@ -7,7 +7,8 @@ import { WORDS, LESSONS } from "./data.js";
 import { DRILLS, shuffle } from "./grammar.js";
 import { store } from "./store.js";
 import { t, tr, getLang } from "./i18n.js";
-import { speak, hasVoice, beep } from "./speech.js";
+import { speak, hasVoice, sfx, vibrate } from "./speech.js";
+import { clockSvg, timePhrase, timeDigits, parseTime } from "./clock.js";
 
 // ссылка «сообщить об ошибке» — новый issue на GitHub с подставленным заданием
 const REPO = "https://github.com/Furigin/slovencina-a1";
@@ -113,7 +114,7 @@ export function buildDrillSession(drill) {
     const key = q.prompt + "|" + q.hint?.ru;
     if (seen.has(key)) continue;
     seen.add(key);
-    items.push({ type: "q", q });
+    items.push(q.item ? q.item : { type: "q", q });
   }
   return { kind: "drill", id: drill.id, title: `${drill.icon} ${tr(drill.t)}`, items };
 }
@@ -127,7 +128,7 @@ export function runSession(root, session, onDone) {
   const queue = [...session.items];
   const graded = new Set();   // слова, которые уже оценены в этом занятии
   const retried = new Set();
-  let idx = 0, correct = 0, total = 0, mistakes = 0;
+  let idx = 0, correct = 0, total = 0, mistakes = 0, combo = 0, bestCombo = 0;
   let current = null, answerFn = null, state = "answer"; // answer | feedback
 
   root.innerHTML = `
@@ -135,6 +136,7 @@ export function runSession(root, session, onDone) {
       <div class="s-top">
         <button class="icon-btn s-close" aria-label="${esc(t("close"))}">✕</button>
         <div class="bar"><div class="bar-fill"></div></div>
+        <div class="combo" aria-live="polite"></div>
       </div>
       <div class="s-body"></div>
       <div class="s-foot">
@@ -200,7 +202,15 @@ export function runSession(root, session, onDone) {
       if (w && !graded.has(w.id) && !current.__retry) { graded.add(w.id); store.grade(w.id, ok); }
       if (!ok && !isRetry && !current.__retry) { const copy = { ...current, __retry: true }; retried.add(copy); queue.push(copy); }
     }
-    if (settings.sound && current.type !== "intro") beep(ok);
+    if (!current.__retry) {
+      combo = ok ? combo + 1 : 0;
+      bestCombo = Math.max(bestCombo, combo);
+    }
+    const comboEl = root.querySelector(".combo");
+    comboEl.textContent = combo >= 3 ? `🔥 ${combo}` : "";
+    comboEl.classList.toggle("hot", combo >= 3);
+    if (settings.sound) sfx(ok ? (combo >= 3 && combo % 5 === 0 ? "combo" : "ok") : "bad");
+    if (!ok) vibrate();
     foot.className = "s-foot " + (ok ? "ok" : "bad");
     const title = res.verdict === "ok" ? t("correct") : res.verdict === "almost" ? t("almost") : t("wrong");
     fb.innerHTML = `<div class="fb-title">${ok ? "✔" : "✖"} ${esc(title)}</div>` +
@@ -227,7 +237,7 @@ export function runSession(root, session, onDone) {
   function finish() {
     cleanup();
     const result = store.finishSession(session.kind, session.id, { correct, total, mistakes });
-    onDone({ ...result, correct, total, mistakes });
+    onDone({ ...result, correct, total, mistakes, bestCombo });
   }
 
   // ---------- отрисовка каждого типа задания ----------
@@ -318,7 +328,7 @@ export function runSession(root, session, onDone) {
           if (sel.dataset.id === b.dataset.id) {
             [sel, b].forEach((x) => { x.classList.remove("sel"); x.classList.add("done"); x.disabled = true; });
             done++;
-            if (settings.sound) beep(true);
+            if (settings.sound) sfx("tap");
             if (done === it.words.length) { setReady(true); mainBtn.click(); }
           } else {
             errors++;
@@ -363,9 +373,78 @@ export function runSession(root, session, onDone) {
       };
     },
 
+
+    clock(it) {
+      const { mode, h, m, phrase } = it;
+      const right = (o) => o.h === h && o.m === m;
+      current.__answer = `${timeDigits(h, m)} — ${phrase}`;
+      const sayBtn = `<button class="speak">🔊</button>`;
+      if (mode === "read") {
+        const options = it.options.map((o) => timePhrase(o.h, o.m));
+        body.innerHTML = `<div class="ex-label">${esc(t("clockRead"))}</div>
+          <div class="clock-wrap">${clockSvg(h, m, 200)}</div>
+          <div class="opts">${options.map((o, i) => `<button class="opt" data-i="${i}"><span class="k">${i + 1}</span>${esc(o)}</button>`).join("")}</div>`;
+        return choice(options, (o) => o === phrase, current.__answer, phrase);
+      }
+      if (mode === "pick") {
+        body.innerHTML = `<div class="ex-label">${esc(t("clockPick"))}</div>
+          <div class="prompt">${sayBtn}<span>${esc(phrase)}</span></div>
+          <div class="clock-grid">${it.options.map((o, i) => `<button class="opt clock-opt" data-i="${i}" aria-label="${i + 1}">${clockSvg(o.h, o.m, 120)}</button>`).join("")}</div>`;
+        body.querySelector(".speak").onclick = () => speak(phrase);
+        if (settings.autoplay) say(phrase);
+        return choice(it.options, right, current.__answer, phrase);
+      }
+      if (mode === "set") {
+        let ch = 12, cm = 0;
+        body.innerHTML = `<div class="ex-label">${esc(t("clockSet"))}</div>
+          <div class="prompt">${sayBtn}<span>${esc(phrase)}</span></div>
+          <div class="clock-wrap set"></div>
+          <div class="steppers">
+            <div class="stepper"><small>${esc(t("hours"))}</small><button class="sp st" data-d="h-">−</button><b class="st-h"></b><button class="sp st" data-d="h+">+</button></div>
+            <div class="stepper"><small>${esc(t("minutes"))}</small><button class="sp st" data-d="m-">−</button><b class="st-m"></b><button class="sp st" data-d="m+">+</button></div>
+          </div>`;
+        const draw = () => {
+          body.querySelector(".clock-wrap").innerHTML = clockSvg(ch, cm, 200);
+          body.querySelector(".st-h").textContent = ch;
+          body.querySelector(".st-m").textContent = String(cm).padStart(2, "0");
+        };
+        body.querySelectorAll(".st").forEach((b) => (b.onclick = () => {
+          if (state !== "answer") return;
+          const d = b.dataset.d;
+          if (d === "h+") ch = (ch % 12) + 1;
+          if (d === "h-") ch = ((ch + 10) % 12) + 1;
+          if (d === "m+") cm = (cm + 5) % 60;
+          if (d === "m-") cm = (cm + 55) % 60;
+          if (settings.sound) sfx("tap");
+          draw(); setReady(true);
+        }));
+        body.querySelector(".speak").onclick = () => speak(phrase);
+        if (settings.autoplay) say(phrase);
+        draw(); setReady(true);
+        return { check: () => ({ verdict: ch === h && cm === m ? "ok" : "bad", answer: current.__answer, speak: phrase }) };
+      }
+      if (mode === "digits") {
+        body.innerHTML = `<div class="ex-label">${esc(t("clockDigits"))}</div>
+          <div class="clock-wrap">${clockSvg(h, m, 200)}</div>
+          <input class="type-in" type="text" inputmode="decimal" autocomplete="off" placeholder="7:30">`;
+        const input = body.querySelector(".type-in");
+        input.oninput = () => setReady(input.value.trim().length > 0);
+        setTimeout(() => input.focus(), 50);
+        return { check: () => { const v = parseTime(input.value); return { verdict: v && right(v) ? "ok" : "bad", answer: current.__answer, speak: phrase }; } };
+      }
+      // mode "type": написать время словами
+      body.innerHTML = `<div class="ex-label">${esc(t("clockType"))}</div>
+        <div class="clock-wrap">${clockSvg(h, m, 200)}</div>
+        <small class="muted">${esc(t("clockTypeHint"))}</small>
+        ${typeBox()}`;
+      const input = wireTypeBox();
+      current.__answer = `${timeDigits(h, m)} — ${phrase}`;
+      return { check: () => ({ verdict: checkAnswer(input.value, [phrase]), answer: current.__answer, speak: phrase }) };
+    },
+
     q(it) {
       const q = it.q;
-      const typed = q.typed && (!q.options || Math.random() < 0.5);
+      const typed = q.forceTyped || (q.typed && (!q.options || Math.random() < 0.5));
       body.innerHTML = `
         <div class="ex-label">${esc(typed ? t("grammarType") : t("grammarQ"))}</div>
         <div class="prompt grammar"><span>${esc(q.prompt)}</span>${q.hint ? `<small>${esc(tr(q.hint))}</small>` : ""}</div>

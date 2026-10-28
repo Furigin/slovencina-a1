@@ -3,6 +3,7 @@
 //  Все формы выписаны явно (по учебнику), чтобы не было ошибок генерации.
 // =====================================================================
 import { WORDS } from "./data.js";
+import { timePhrase, timeDigits } from "./clock.js";
 
 // ---------- маленькие помощники ----------
 const rnd = (n) => Math.floor(Math.random() * n);
@@ -80,6 +81,31 @@ export const MODALS = {
   "vedieť": "viem vieš vie vieme viete vedia",
 };
 const PERSONS = ["ja", "ty", "on", "my", "vy", "oni"];
+const PERSON_LABEL = ["ja", "ty", "on / ona", "my", "vy", "oni"];
+// глаголы для тренажёра окончаний (без byť и jesť — у них не видно основы)
+const ENDING_VERBS = Object.fromEntries(Object.keys(PRESENT).filter((v) => !["byť", "jesť"].includes(v)).map((v) => [v, 1]));
+export function commonPrefix(forms) {
+  let p = forms[0];
+  for (const f of forms) while (!f.startsWith(p)) p = p.slice(0, -1);
+  return p;
+}
+// случайное время для часов: чаще ровные часы и половины
+export function randomTime() {
+  const h = 1 + rnd(12);
+  const m = pick([0, 0, 0, 30, 30, 15, 45, 5, 10, 20, 25, 35, 40, 50, 55]);
+  return { h, m };
+}
+// 4 варианта времени: правильное + похожие (другой час, другие минуты)
+export function clockOptions(h, m) {
+  const set = new Map([[`${h}:${m}`, { h, m }]]);
+  const cand = [
+    { h: (h % 12) + 1, m }, { h: ((h + 10) % 12) + 1, m }, { h, m: (m + 30) % 60 },
+    { h, m: (m + 15) % 60 }, { h: ((h + 5) % 12) + 1, m: (m + 45) % 60 }, { h: (m / 5) || 12, m: (h * 5) % 60 },
+  ];
+  for (const c of shuffle(cand)) { if (set.size >= 4) break; set.set(`${c.h}:${c.m}`, c); }
+  return shuffle([...set.values()]);
+}
+export { timePhrase, timeDigits };
 const PERSON_ALT = { on: ["on", "ona", "Peter", "Mária"], oni: ["oni", "deti", "študenti"] };
 
 // Прошедшее время: инфинитив → [муж., жен., мн.]
@@ -245,7 +271,7 @@ export function numToSk(n) {
 //  Вопрос: { prompt, hint, answer, alts?, options? (если выбор), explain? }
 // =====================================================================
 // только простые существительные: без пробелов, знаков и заглавных (страны не берём)
-const nouns = () => WORDS.filter((w) => ["m", "f", "n"].includes(w.g) && /^[a-záäčďéíĺľňóôŕšťúýž]+$/.test(w.sk));
+const nouns = () => WORDS.filter((w) => w.lesson > 0 && ["m", "f", "n"].includes(w.g) && /^[a-záäčďéíĺľňóôŕšťúýž]+$/.test(w.sk));
 const adjectives = () => WORDS.filter((w) => ["2-1", "2-2", "2-3", "2-4"].includes(w.unit) && /[ýy]$/.test(w.sk));
 // формы прилагательного: nový → nová, nové;  biely → biela, biele
 function adjForms(m) {
@@ -354,16 +380,47 @@ const GEN = {
       explain: L("мужчина — rád, женщина — rada, мужчины или смешанная группа — radi, женщины, дети, вещи — rady", "man — rád, woman — rada, men or mixed group — radi, women, children, things — rady"),
     };
   },
+  // Часы: 4 вида заданий с настоящим циферблатом (рисует session.js)
   time() {
-    const h = 1 + rnd(12);
-    const words = ["", "jedna", "dve", "tri", "štyri", "päť", "šesť", "sedem", "osem", "deväť", "desať", "jedenásť", "dvanásť"];
-    const say = (x) => (x === 1 ? "Je jedna." : x <= 4 ? `Sú ${words[x]}.` : `Je ${words[x]}.`);
-    const answer = say(h);
-    const wrong = [say(h % 12 + 1), say(((h + 10) % 12) + 1), h <= 4 && h > 1 ? `Je ${words[h]}.` : `Sú ${words[h]}.`, say(((h + 5) % 12) + 1)];
+    const { h, m } = randomTime();
+    const mode = pick(["read", "read", "pick", "set", "digits", "type"]);
+    const phrase = timePhrase(h, m);
     return {
-      prompt: `🕐 ${h}:00`, hint: L("Koľko je hodín?", "Koľko je hodín?"),
-      answer, options: opts(answer, wrong), audio: answer,
-      explain: L("1 — Je jedna. 2, 3, 4 — Sú dve/tri/štyri. 5+ — Je päť…", "1 — Je jedna. 2, 3, 4 — Sú dve/tri/štyri. 5+ — Je päť…"),
+      prompt: `clock:${mode}:${h}:${m}`,
+      hint: L("Koľko je hodín?", "Koľko je hodín?"),
+      item: { type: "clock", mode, h, m, phrase, options: clockOptions(h, m) },
+    };
+  },
+  // Числа: слово → цифры
+  numDigits() {
+    const [a, b] = pick([[0, 20], [21, 99], [100, 1000]]);
+    const n = a + rnd(b - a + 1);
+    return { prompt: numToSk(n), hint: L("напиши цифрами", "write in digits"), answer: String(n), typed: true, forceTyped: true, audio: numToSk(n) };
+  },
+  // Окончания: «(my) čít___» → «ame»
+  ending() {
+    const inf = pick(Object.keys(ENDING_VERBS));
+    const forms = PRESENT[inf].split(" ");
+    const stem = commonPrefix(forms);
+    const i = rnd(6);
+    const ends = forms.map((f) => "-" + f.slice(stem.length));
+    const answer = ends[i];
+    return {
+      prompt: `${PERSON_LABEL[i]} ${stem}___`, hint: L(`(${inf}) — какое окончание?`, `(${inf}) — which ending?`),
+      answer, options: opts(answer, ends, 4),
+      explain: L(`${PERSON_LABEL[i]} → ${forms[i]}. Окончания: ja -m, ty -š, on —, my -me, vy -te, oni -jú/-ia/-ú`, `${PERSON_LABEL[i]} → ${forms[i]}. Endings: ja -m, ty -š, on —, my -me, vy -te, oni -jú/-ia/-ú`),
+    };
+  },
+  // Кто это делает? «čítame» → «my»
+  who() {
+    const inf = pick(Object.keys(ENDING_VERBS));
+    const forms = PRESENT[inf].split(" ");
+    const i = rnd(6);
+    const answer = PERSON_LABEL[i];
+    return {
+      prompt: forms[i], hint: L(`Кто? (${inf})`, `Who? (${inf})`),
+      answer, options: [...PERSON_LABEL],
+      explain: L(`${forms[i]} — окончание ${forms[i].slice(commonPrefix(forms).length) || "без окончания"} → ${answer}`, `${forms[i]} — ending → ${answer}`),
     };
   },
   price() {
@@ -492,11 +549,14 @@ export const DRILLS = [
   { id: "opp", lesson: 2, icon: "↔️", t: L("Противоположности", "Opposites"), gen: GEN.opp },
   { id: "poss", lesson: 2, icon: "🫵", t: L("Môj, tvoj, jeho…", "Môj, tvoj, jeho…"), gen: GEN.poss },
   { id: "num", lesson: 2, icon: "🔢", t: L("Числа 0–1000", "Numbers 0–1000"), gen: GEN.num },
+  { id: "numDigits", lesson: 2, icon: "🔟", t: L("Слово → цифры", "Word → digits"), gen: GEN.numDigits },
   { id: "jeden", lesson: 2, icon: "1️⃣", t: L("Jeden / jedna / jedno", "Jeden / jedna / jedno"), gen: GEN.jeden },
   { id: "present", lesson: 3, icon: "⚙️", t: L("Настоящее время", "Present tense"), gen: GEN.present },
   { id: "modal", lesson: 3, icon: "💪", t: L("Musím, chcem, môžem…", "Modal verbs"), gen: GEN.modal },
   { id: "rad", lesson: 3, icon: "❤️", t: L("Rád / rada / radi", "Rád / rada / radi"), gen: GEN.rad },
-  { id: "time", lesson: 3, icon: "🕐", t: L("Koľko je hodín?", "Telling the time"), gen: GEN.time },
+  { id: "time", lesson: 3, icon: "🕐", t: L("Часы: Koľko je hodín?", "Clock: Koľko je hodín?"), gen: GEN.time },
+  { id: "ending", lesson: 3, icon: "🧩", t: L("Окончания глаголов", "Verb endings"), gen: GEN.ending },
+  { id: "who", lesson: 3, icon: "🙋", t: L("Кто это делает?", "Who does it?"), gen: GEN.who },
   { id: "price", lesson: 3, icon: "💶", t: L("Koľko stojí? (евро)", "Prices (euro)"), gen: GEN.price },
   { id: "acc", lesson: 4, icon: "🎯", t: L("Винительный падеж", "Accusative"), gen: GEN.acc },
   { id: "accPron", lesson: 4, icon: "👀", t: L("ma, ťa, ho, ju…", "ma, ťa, ho, ju…"), gen: GEN.accPron },
@@ -581,7 +641,8 @@ export const CHEATSHEETS = {
     },
     {
       t: L("Время и цены", "Time & prices"),
-      rows: [["1", "2–4", "5+"], ["Je jedna.", "Sú dve / tri / štyri.", "Je päť."], ["jedno euro", "dve / tri / štyri eurá", "päť eur"], ["1 cent", "3 centy", "50 centov"]],
+      note: L("Часы — женского рода (hodina), поэтому 1 = jedna, 2 = dve. Минуты говорим просто числом: 7:30 — Je sedem tridsať. Если минут меньше 10 — «nula»: 12:05 — Je dvanásť nula päť.", "Hours are feminine (hodina): 1 = jedna, 2 = dve. Minutes are just a number: 7:30 — Je sedem tridsať. Under 10 minutes add 'nula': 12:05 — Je dvanásť nula päť."),
+      rows: [["1", "2–4", "5+"], ["Je jedna.", "Sú dve / tri / štyri.", "Je päť."], ["Je jedna tridsať.", "Sú dve pätnásť.", "Je sedem nula päť."], ["O štyri nula nula.", "O sedem tridsať.", "O dvanásť nula päť."], ["jedno euro", "dve / tri / štyri eurá", "päť eur"], ["1 cent", "3 centy", "50 centov"]],
     },
     {
       t: L("Как часто?", "How often?"),

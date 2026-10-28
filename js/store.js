@@ -37,7 +37,8 @@ export function emptyProgress() {
     sents: {},   // номер урока → { best, plays, t }
     days: {},    // "2026-10-27" → опыт за день
     ach: {},     // достижение → когда получено
-    settings: { lang: "ru", goal: 50, sound: true, autoplay: true, welcomed: false },
+    settings: { lang: "ru", goal: 50, sound: true, autoplay: true, welcomed: false, theme: "auto", remind: true, notify: false },
+    lastCheck: 0, // когда последний раз проверял «давно не виденные» слова (для напоминания)
     nick: "",
     created: Date.now(),
     updated: 0,
@@ -77,6 +78,7 @@ export function merge(a, b) {
   out.nick = newer.nick || a.nick || b.nick;
   out.created = Math.min(a.created || Date.now(), b.created || Date.now());
   out.updated = Math.max(a.updated || 0, b.updated || 0);
+  out.lastCheck = Math.max(a.lastCheck || 0, b.lastCheck || 0);
   return out;
 }
 
@@ -219,6 +221,11 @@ export const store = {
       const r = this.p.words[w.id];
       return r && r.b > 0 && r.due <= today;
     }).sort((a, b) => this.p.words[a.id].due - this.p.words[b.id].due);
+  },
+  // выученные слова, которые дольше всего не попадались (для «Проверь свои знания»)
+  oldWords() {
+    return WORDS.filter((w) => this.p.words[w.id]?.b > 0)
+      .sort((a, b) => (this.p.words[a.id].t || 0) - (this.p.words[b.id].t || 0));
   },
   weakWords() {
     return WORDS.filter((w) => this.p.words[w.id]?.b > 0)

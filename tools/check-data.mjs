@@ -29,6 +29,14 @@ for (const l of LESSONS) for (const s of l.sentenceList) {
 for (const d of DRILLS) {
   for (let i = 0; i < 300; i++) {
     const q = d.gen();
+    if (q.item) {
+      // задание с часами: среди вариантов должно быть правильное время, без повторов
+      const it = q.item, keys = it.options.map((o) => `${o.h}:${o.m}`);
+      if (!keys.includes(`${it.h}:${it.m}`)) err(`${d.id}: нет правильного времени среди вариантов`);
+      if (new Set(keys).size !== keys.length || keys.length < 4) err(`${d.id}: плохие варианты ${keys}`);
+      if (it.options.some((o) => o.h < 1 || o.h > 12 || o.m < 0 || o.m > 59)) err(`${d.id}: неверное время ${keys}`);
+      continue;
+    }
     if (!q.answer) err(`${d.id}: пустой ответ (${q.prompt})`);
     if (q.options && !q.options.includes(q.answer)) err(`${d.id}: ответа нет среди вариантов (${q.prompt} → ${q.answer})`);
     if (q.options && new Set(q.options).size !== q.options.length) err(`${d.id}: повтор вариантов (${q.prompt})`);

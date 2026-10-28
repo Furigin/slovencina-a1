@@ -1143,10 +1143,13 @@ function parseLines(text, unitId) {
     });
 }
 
+import { EXTRA } from "./extra.js";
+
 // Все слова и предложения в удобном виде
 export const WORDS = [];
 export const WORD_BY_ID = {};
 export const UNIT_BY_ID = {};
+export const EXTRA_UNITS = EXTRA; // доп. словарь (вкладка «Слова»), lesson = 0
 
 for (const lesson of LESSONS) {
   for (const unit of lesson.units) {
@@ -1167,4 +1170,22 @@ for (const lesson of LESSONS) {
       const [sk, ru, en] = line.split("|").map((s) => s.trim());
       return { id: lesson.id + "#" + i, sk, ru, en };
     });
+}
+
+// Доп. словарь: слова, которых нет в учебнике (повторы пропускаем)
+const known = new Set(WORDS.map((w) => w.sk.toLowerCase()));
+for (const unit of EXTRA) {
+  unit.lesson = 0;
+  unit.list = parseLines(unit.words, unit.id).filter((w) => {
+    const k = w.sk.toLowerCase();
+    if (known.has(k)) return false;
+    known.add(k);
+    return true;
+  });
+  UNIT_BY_ID[unit.id] = unit;
+  for (const w of unit.list) {
+    w.lesson = 0;
+    WORDS.push(w);
+    WORD_BY_ID[w.id] = w;
+  }
 }
