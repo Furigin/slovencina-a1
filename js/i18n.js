@@ -134,6 +134,15 @@ const T = {
   installApp: ["Добавь сайт на главный экран телефона — будет как приложение.", "Add this site to your home screen — it works like an app."],
   offline: ["Нет интернета — продолжаем офлайн", "Offline — keep learning"],
   dayNames: ["пн вт ср чт пт сб вс", "Mo Tu We Th Fr Sa Su"],
+
+  help: ["Как пользоваться", "How to use"],
+  share: ["Поделиться сайтом", "Share the site"],
+  shareText: ["Бесплатный тренажёр словацкого по нашему учебнику «Tri, dva, jeden»", "Free Slovak trainer for our 'Tri, dva, jeden' textbook"],
+  linkCopied: ["Ссылка скопирована", "Link copied"],
+  report: ["Сообщить об ошибке", "Report a mistake"],
+  reportHere: ["⚑ Ошибка в задании?", "⚑ Mistake in this task?"],
+  about: ["Неофициальный бесплатный тренажёр для студентов курса. Слова и грамматика — по учебнику «Tri, dva, jeden – slovenčina» (A1, Univerzita Komenského). Переводы сделаны вручную — если нашёл ошибку, сообщи.", "An unofficial free trainer for course students, based on the 'Tri, dva, jeden – slovenčina' textbook (A1, Comenius University). Translations are hand-made — please report mistakes."],
+  helpBack: ["Понятно, начнём!", "Got it, let's go!"],
 };
 
 let lang = "ru";

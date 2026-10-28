@@ -290,6 +290,13 @@ function screenProfile() {
       <button class="btn wide do-export">⬇️ ${esc(t("exportBtn"))}</button>
       <label class="btn wide">⬆️ ${esc(t("importBtn"))}<input type="file" accept=".json,application/json" class="do-import" hidden></label>
     </div>
+    <h2>ℹ️</h2>
+    <div class="card">
+      <a class="btn wide" href="#/help">📖 ${esc(t("help"))}</a>
+      <button class="btn wide do-share">📤 ${esc(t("share"))}</button>
+      <a class="btn ghost wide" href="${reportUrl()}" target="_blank" rel="noopener">🐞 ${esc(t("report"))}</a>
+      <p class="muted small">${esc(t("about"))}</p>
+    </div>
     <p class="muted small center">${esc(t("installApp"))}</p>
   `);
 
@@ -298,6 +305,7 @@ function screenProfile() {
   app.querySelector(".set-sound").onchange = (e) => store.setSetting("sound", e.target.checked);
   app.querySelector(".set-auto").onchange = (e) => store.setSetting("autoplay", e.target.checked);
   app.querySelector(".do-export").onclick = exportProgress;
+  app.querySelector(".do-share").onclick = shareSite;
   app.querySelector(".do-import").onchange = async (e) => {
     const f = e.target.files[0];
     if (!f) return;
@@ -318,6 +326,55 @@ function screenProfile() {
     app.querySelector(".lb-week").onclick = (e) => { mode = "week"; e.target.classList.add("active"); app.querySelector(".lb-all").classList.remove("active"); draw(); };
     app.querySelector(".lb-all").onclick = (e) => { mode = "all"; e.target.classList.add("active"); app.querySelector(".lb-week").classList.remove("active"); draw(); };
   }
+}
+
+
+const HELP = {
+  ru: [
+    ["🏠", "Учиться", "Каждый урок учебника разбит на темы. Нажми на тему → «Начать». Одно занятие — 3–5 минут: новые слова, выбор перевода, пары, ввод с клавиатуры, задания на слух. Ошибки повторяются в конце."],
+    ["⭐", "Кольцо вокруг темы", "Зелёное кольцо — насколько хорошо ты знаешь тему, золотое — тема выучена. Лучше проходить тему несколько дней подряд, чем 5 раз за вечер: так слова запоминаются надолго."],
+    ["🔁", "Повторение", "Каждое слово возвращается через 1, 2, 4, 7, 15, 30 дней. Красный кружок на вкладке — сколько слов пора повторить. Хватит 5 минут в день."],
+    ["🧩", "Грамматика", "Под каждым уроком — тренажёры (byť, род, падежи, времена…) и «Шпаргалка» с таблицами. «Предложения» — собери фразу из слов."],
+    ["⌨️", "Ввод", "Под полем есть кнопки á ä č ď ľ ô š ť ž… Если забыл диакритику, ответ засчитается, но ты увидишь правильное написание. На ПК: Enter — проверить, цифры 1–4 — выбрать вариант."],
+    ["🔊", "Озвучка", "Работает, если в устройстве есть словацкий голос: обычно в Chrome на Android и в Edge на ПК. Если голоса нет — задания на слух просто пропускаются."],
+    ["☁️", "Прогресс", "Создай аккаунт (ник + пароль) — прогресс сохранится в облаке, можно учиться с телефона и компьютера. Значок ☁️✓ сверху — всё сохранено. Запомни пароль: по нику его не восстановить."],
+    ["📱", "Как приложение", "Android/Chrome: меню ⋮ → «Добавить на главный экран». iPhone/Safari: «Поделиться» → «На экран Домой»."],
+    ["🐞", "Нашёл ошибку", "Если перевод или задание неправильные — нажми «⚑ Ошибка в задании?» после ответа или «Сообщить об ошибке» в профиле."],
+  ],
+  en: [
+    ["🏠", "Learn", "Each textbook lesson is split into topics. Tap a topic → Start. A session takes 3–5 minutes: new words, multiple choice, pairs, typing, listening. Mistakes come back at the end."],
+    ["⭐", "Topic ring", "The green ring shows how well you know a topic; gold means mastered. Practise over several days rather than many times in one evening."],
+    ["🔁", "Review", "Every word comes back after 1, 2, 4, 7, 15, 30 days. The red badge shows how many words are due. 5 minutes a day is enough."],
+    ["🧩", "Grammar", "Under each lesson: grammar drills and a cheat sheet with tables. 'Sentences' — build a phrase from tiles."],
+    ["⌨️", "Typing", "Use the á ä č ď ľ ô š ť ž buttons. Missing accents still count, but you'll see the correct spelling. On PC: Enter checks, keys 1–4 pick an option."],
+    ["🔊", "Voice", "Works if your device has a Slovak voice (usually Chrome on Android, Edge on PC). Without it, listening tasks are skipped."],
+    ["☁️", "Progress", "Create an account (nickname + password) to save progress in the cloud and use several devices. ☁️✓ at the top means saved. Remember your password: it can't be recovered for nicknames."],
+    ["📱", "Install", "Android/Chrome: menu ⋮ → Add to Home screen. iPhone/Safari: Share → Add to Home Screen."],
+    ["🐞", "Found a mistake", "Tap '⚑ Mistake in this task?' after an answer or 'Report a mistake' in your profile."],
+  ],
+};
+const REPO = "https://github.com/Furigin/slovencina-a1";
+function reportUrl(context = "") {
+  const title = context ? `Ошибка: ${context}` : "Ошибка на сайте";
+  return `${REPO}/issues/new?title=${encodeURIComponent(title)}&body=${encodeURIComponent("Что не так и как правильно:\n\n")}`;
+}
+
+function screenHelp() {
+  const items = HELP[getLang() === "en" ? "en" : "ru"];
+  app.innerHTML = frame("profile", `
+    <h1>📖 ${esc(t("help"))}</h1>
+    ${items.map(([ic, h, txt]) => `<div class="card help-item"><span class="help-ic">${ic}</span><div><b>${esc(h)}</b><p>${esc(txt)}</p></div></div>`).join("")}
+    <p class="muted small">${esc(t("about"))}</p>
+    <a class="btn primary wide" href="#/">${esc(t("helpBack"))}</a>`);
+}
+
+async function shareSite() {
+  const url = "https://furigin.github.io/slovencina-a1/";
+  try {
+    if (navigator.share) { await navigator.share({ title: "Slovenčina A1", text: t("shareText"), url }); return; }
+    await navigator.clipboard.writeText(url);
+    toast(t("linkCopied"));
+  } catch (e) { /* пользователь закрыл окно */ }
 }
 
 function accountBlock() {
@@ -411,11 +468,13 @@ function screenWelcome() {
       <div class="goals">${GOALS.map((g, i) => `<button class="goal-btn ${s.goal === g ? "active" : ""}" data-g="${g}"><b>${esc(t(["goalEasy", "goalNormal", "goalHard"][i]))}</b><small>${g} XP</small></button>`).join("")}</div>
       ${cloud.enabled ? `<p class="muted">${esc(t("welcomeAccount"))}</p><a class="btn primary wide w-reg" href="#/login">${esc(t("register"))}</a>` : ""}
       <button class="btn ${cloud.enabled ? "ghost" : "primary"} wide w-guest">${esc(cloud.enabled ? t("welcomeGuest") : t("start"))}</button>
+      <a class="link w-help" href="#/help">📖 ${esc(t("help"))}</a>
     </div>`;
   app.querySelectorAll(".lang-seg button").forEach((b) => (b.onclick = () => { s.lang = b.dataset.l; setLang(b.dataset.l); store.save(); screenWelcome(); }));
   app.querySelectorAll(".goal-btn").forEach((b) => (b.onclick = () => { s.goal = +b.dataset.g; store.save(); screenWelcome(); }));
   const done = () => { s.welcomed = true; store.save(); localSet("welcomed", true); };
   app.querySelector(".w-reg")?.addEventListener("click", () => { done(); screenLogin.mode = "register"; });
+  app.querySelector(".w-help").addEventListener("click", done);
   app.querySelector(".w-guest").onclick = () => { done(); render(); };
 }
 
@@ -528,6 +587,7 @@ function render() {
   if (a === "grammar") return screenGrammar(b);
   if (a === "profile") return screenProfile();
   if (a === "login") return screenLogin();
+  if (a === "help") return screenHelp();
   return screenLearn();
 }
 

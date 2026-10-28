@@ -159,6 +159,8 @@ export const IMPERATIVE = {
 };
 
 // Винительный падеж: [именительный, винительный, род]
+// существительные-люди среди жен. и ср. рода
+const PEOPLE = new Set(["mama", "sestra", "babka", "dieťa"]);
 const ACC = [
   ["kniha", "knihu", "f"], ["voda", "vodu", "f"], ["káva", "kávu", "f"], ["mama", "mamu", "f"],
   ["sestra", "sestru", "f"], ["babka", "babku", "f"], ["hudba", "hudbu", "f"], ["zmrzlina", "zmrzlinu", "f"],
@@ -293,9 +295,12 @@ const GEN = {
     };
   },
   opp() {
-    const pool = WORDS.filter((w) => w.opp && WORDS.some((x) => x.sk === w.opp));
+    const adj = adjectives();
+    const pool = adj.filter((w) => w.opp && adj.some((x) => x.sk === w.opp));
     const w = pick(pool);
-    const wrong = adjectives().map((x) => x.sk).filter((x) => x !== w.sk);
+    // не предлагать как «неправильные» другие антонимы этого слова (starý ↔ mladý и nový)
+    const alsoOk = new Set([w.opp, ...WORDS.filter((x) => x.opp === w.sk).map((x) => x.sk)]);
+    const wrong = adj.map((x) => x.sk).filter((x) => x !== w.sk && !alsoOk.has(x));
     return {
       prompt: `${w.sk} ↔ ?`, hint: L("противоположность", "opposite"),
       answer: w.opp, options: opts(w.opp, wrong),
@@ -346,7 +351,7 @@ const GEN = {
     return {
       prompt: `${s} ___ … (${pick(V)})`, hint: L("rád / rada / radi / rady", "rád / rada / radi / rady"),
       answer, options: ["rád", "rada", "radi", "rady"],
-      explain: L("мужчина — rád, женщина — rada, они (люди) — radi, дети/вещи — rady", "man — rád, woman — rada, they (people) — radi, children/things — rady"),
+      explain: L("мужчина — rád, женщина — rada, мужчины или смешанная группа — radi, женщины, дети, вещи — rady", "man — rád, woman — rada, men or mixed group — radi, women, children, things — rady"),
     };
   },
   time() {
@@ -374,8 +379,10 @@ const GEN = {
   },
   acc() {
     const [nom, acc, g] = pick(ACC);
-    const verb = g === "ma" ? pick(["Vidím", "Čakám na", "Poznám", "Mám rád"]) : pick(["Mám", "Chcem", "Hľadám", "Kupujem", "Mám rada"]);
-    const rule = { f: L("жен. род: -a → -u", "feminine: -a → -u"), mi: L("муж. неодуш.: без изменений", "masc. inanimate: no change"), n: L("средний род: без изменений", "neuter: no change"), ma: L("муж. одуш.: + -a (на -a → -u)", "masc. animate: + -a (-a → -u)") }[g];
+    // для людей — глаголы про людей, для вещей — про вещи (чтобы не было «Kupujem mamu»)
+    const person = g === "ma" || PEOPLE.has(nom);
+    const verb = person ? pick(["Vidím", "Čakám na", "Poznám", "Mám rád"]) : pick(["Mám", "Chcem", "Hľadám", "Kupujem", "Mám rada"]);
+    const rule = { f: L("жен. род: -a → -u", "feminine: -a → -u"), mi: L("муж. неодуш.: без изменений", "masc. inanimate: no change"), n: L("средний род: без изменений", "neuter: no change"), ma: L("муж. одуш.: + -a (dedko → dedka; e выпадает: otec → otca; на -a → -u)", "masc. animate: + -a (dedko → dedka; e drops: otec → otca; -a → -u)") }[g];
     return {
       prompt: `${verb} ___ .`, hint: L(`(${nom}) — koho? čo?`, `(${nom}) — koho? čo?`),
       answer: acc, typed: Math.random() < 0.5,
@@ -384,10 +391,13 @@ const GEN = {
     };
   },
   accPron() {
-    const [p, a] = pick(ACC_PRON);
-    const subj = pick(["Peter vidí", "Mama čaká na", "Poznáš", "Pozývam", "Hľadáme"]);
+    // [начало, конец, «сам» — его не спрашиваем, иначе нужно было бы «sa»]
+    // Короткое местоимение стоит на 2-м месте: «Peter ma vidí», а не «Peter vidí ma».
+    const FRAMES = [["Peter", "vidí.", "on"], ["Mama", "volá.", "ona"], ["Poznáš", "?", "ty"], ["Pozývam", "na kávu.", "ja"], ["Hľadáme", ".", "my"]];
+    const [pre, post, self] = pick(FRAMES);
+    const [p, a] = pick(ACC_PRON.filter((x) => x[0] !== self && !(self === "on" && x[0] === "on") && !(self === "ona" && x[0] === "ona")));
     return {
-      prompt: `${subj} ___ .`, hint: L(`(${p})`, `(${p})`),
+      prompt: `${pre} ___ ${post}`, hint: L(`(${p})`, `(${p})`),
       answer: a, options: opts(a, ACC_PRON.map((x) => x[1])),
       explain: L(`${p} → ${a}`, `${p} → ${a}`),
     };
@@ -563,7 +573,7 @@ export const CHEATSHEETS = {
     },
     {
       t: L("Rád robím — я люблю делать", "Rád robím — I like doing"),
-      rows: [["", "", ""], ["on / ja (муж.)", "rád", "Rád čítam."], ["ona / ja (жен.)", "rada", "Rada spievam."], ["oni (люди)", "radi", "Radi tancujú."], ["ony (дети, вещи)", "rady", "Deti rady hrajú futbal."]],
+      rows: [["", "", ""], ["on / ja (муж.)", "rád", "Rád čítam."], ["ona / ja (жен.)", "rada", "Rada spievam."], ["oni (мужчины, смешанная группа)", "radi", "Peter a Jana radi tancujú."], ["ony (женщины, дети, вещи)", "rady", "Deti rady hrajú futbal."]],
     },
     {
       t: L("Sa всегда на 2-м месте", "Sa is always in 2nd position"),

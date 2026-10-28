@@ -320,6 +320,11 @@ th { background: var(--sel); font-weight: 800; }
 .s-foot.bad .fb-title { color: var(--bad); }
 .fb-ans, .fb-exp { margin-top: 4px; }
 .fb-exp { color: var(--muted); font-size: 15px; }
+.fb-report { display: inline-block; margin-top: 6px; font-size: 13px; color: var(--muted); text-decoration: underline; }
+.help-item { display: flex; gap: 14px; align-items: flex-start; }
+.help-item p { margin: 4px 0 0; color: var(--muted); font-size: 15px; }
+.help-ic { font-size: 28px; line-height: 1; }
+.w-help { display: block; margin-top: 14px; font-weight: 700; }
 .s-actions { display: flex; gap: 10px; justify-content: space-between; }
 .s-actions .btn.primary, .s-actions .btn.bad { flex: 1; max-width: 320px; margin-left: auto; }
 .s-foot.ok .s-main { background: var(--ok); border-color: #468a00; }

@@ -35,18 +35,18 @@ dedko | дедушка | grandpa | m
 babka | бабушка | grandma | f
 pán | господин (пан) | Mr., gentleman | m
 pani | госпожа (пани) | Mrs., lady | f
-slečna | девушка (обращение), мисс | Miss | f
+slečna | барышня, мисс (обращение) | Miss | f
 človek | человек | person | m
 ľudia | люди | people | pl
-priateľ | друг; парень (бойфренд) | friend; boyfriend | m fem=priateľka
-kamarát | приятель, друг | buddy, friend | m fem=kamarátka
+priateľ | друг; бойфренд | friend; boyfriend | m fem=priateľka
+kamarát | приятель, товарищ | buddy, pal | m fem=kamarátka
 `,
       },
       {
         id: "1-2", icon: "👩‍⚕️", sk: "Profesie", ru: "Профессии", en: "Professions",
         words: `
-doktor | врач, доктор | doctor | m fem=doktorka
-lekár | врач | physician | m fem=lekárka
+doktor | доктор | doctor | m fem=doktorka
+lekár | врач | physician, medical doctor | m fem=lekárka
 lektor | преподаватель (языка) | lecturer, language teacher | m fem=lektorka
 učiteľ | учитель | teacher | m fem=učiteľka
 študent | студент | student | m fem=študentka
@@ -83,7 +83,7 @@ kalkulačka | калькулятор | calculator | f
 mapa | карта | map | f
 papier | бумага | paper | m
 nožnice | ножницы | scissors | pl
-obal | обложка; пакет | cover, wrapper | m
+obal | обложка (для тетради, книги) | cover (for a book) | m
 kalendár | календарь | calendar | m
 slovník | словарь | dictionary | m
 mobil | мобильный телефон | mobile phone | m
@@ -143,12 +143,13 @@ Dobrý večer! | Добрый вечер! | Good evening!
 Dobrú noc! | Спокойной ночи! | Good night!
 Dovidenia! | До свидания! | Goodbye!
 Ďakujem. | Спасибо. | Thank you.
-Prosím. | Пожалуйста. | Please. / You're welcome.
-Nech sa páči. | Пожалуйста (вот, возьмите). | Here you are.
+Prosím. | Пожалуйста (просьба; ответ на «спасибо»). | Please. / You're welcome.
+Nech sa páči. | Вот, возьмите. / Прошу. | Here you are.
 Na zdravie! | Будь здоров! / За здоровье! | Bless you! / Cheers!
 Dobrú chuť! | Приятного аппетита! | Enjoy your meal!
 Teší ma. | Очень приятно. | Nice to meet you.
-Kto si? | Кто ты? | Who are you?
+Kto si? | Кто ты? | Who are you? (informal)
+Kto ste? | Кто вы? | Who are you? (formal)
 Odkiaľ si? | Откуда ты? | Where are you from? (informal)
 Odkiaľ ste? | Откуда вы? | Where are you from? (formal)
 Som zo Slovenska. | Я из Словакии. | I am from Slovakia.
@@ -174,7 +175,7 @@ vykať | говорить на «вы» | to say "vy" (formal)
     ],
     sentences: `
 Som študent. | Я студент. | I am a student.
-Ona je lektorka. | Она преподаватель. | She is a teacher.
+Ona je lektorka. | Она преподаватель (языка). | She is a lecturer.
 Nie som doktor. | Я не врач. | I am not a doctor.
 Kde je pero? | Где ручка? | Where is the pen?
 Lampa je vľavo hore. | Лампа слева вверху. | The lamp is up on the left.
@@ -222,8 +223,8 @@ nový | новый | new | opp=starý
 pekný | красивый | pretty, nice | opp=škaredý
 škaredý | некрасивый, уродливый | ugly | opp=pekný
 dlhý | длинный | long | opp=krátky
-krátky | короткий | short | opp=dlhý
-nízky | низкий | low, short | opp=vysoký
+krátky | короткий | short (not long) | opp=dlhý
+nízky | низкий, невысокий | low, short (not tall) | opp=vysoký
 vysoký | высокий | tall, high | opp=nízky
 tučný | толстый (о человеке) | fat | opp=štíhly
 štíhly | стройный | slim | opp=tučný
@@ -267,16 +268,16 @@ chorý | больной | ill | opp=zdravý
 zdravý | здоровый | healthy | opp=chorý
 smutný | грустный | sad | opp=veselý
 veselý | весёлый | cheerful | opp=smutný
-múdry | умный | wise, clever | opp=hlúpy
+múdry | мудрый, умный | wise, clever | opp=hlúpy
 hlúpy | глупый | stupid | opp=múdry
-inteligentný | умный, интеллигентный | intelligent | opp=hlúpy
+inteligentný | умный, сообразительный | intelligent | opp=hlúpy
 aktívny | активный | active | opp=lenivý
 lenivý | ленивый | lazy | opp=aktívny
 šťastný | счастливый | happy | opp=nešťastný
 nešťastný | несчастный | unhappy | opp=šťastný
 úspešný | успешный | successful | opp=neúspešný
 usilovný | старательный, прилежный | hard-working
-sympatický | симпатичный, приятный | nice, likeable | opp=nesympatický
+sympatický | приятный, симпатичный (о человеке) | likeable, pleasant | opp=nesympatický
 unavený | уставший | tired
 `,
       },
@@ -298,6 +299,7 @@ manžel | муж (супруг) | husband | m
 manželka | жена (супруга) | wife | f
 pes | собака | dog | m
 mačka | кошка | cat | f
+kurča | цыплёнок | chick | n
 `,
       },
       {
@@ -384,6 +386,12 @@ Som smädný. | Я хочу пить. | I am thirsty.
 hudba | музыка | music | f
 film | фильм | film | m
 herec | актёр | actor | m fem=herečka
+hviezda | звезда | star | f
+počasie | погода | weather | n
+predmet | школьный предмет | school subject | m
+fyzika | физика | physics | f
+matematika | математика | mathematics | f
+cyklistika | велоспорт | cycling | f
 `,
       },
     ],
@@ -427,10 +435,14 @@ pýtať sa | спрашивать | to ask
 bývať | жить (проживать) | to live (reside)
 mať | иметь | to have
 večerať | ужинать | to have dinner
+rozprávať sa | разговаривать | to talk, to chat
+pomáhať | помогать | to help
+zarábať | зарабатывать | to earn
+behať | бегать | to run, to jog
 `,
       },
       {
-        id: "3-2", icon: "🗨️", sk: "Slovesá na -iť, -ieť", ru: "Глаголы на -iť, -ieť", en: "I-verbs",
+        id: "3-2", icon: "🗨️", sk: "I-slovesá (robím, spím)", ru: "I-глаголы (-ím)", en: "I-verbs (-ím)",
         words: `
 robiť | делать | to do, to make
 hovoriť | говорить | to speak
@@ -442,10 +454,10 @@ fajčiť | курить | to smoke
 sedieť | сидеть | to sit
 spať | спать | to sleep
 stáť | стоять; стоить | to stand; to cost
-rozumieť | понимать | to understand
 vidieť | видеть | to see
-cvičiť | заниматься спортом, упражняться | to exercise
+cvičiť | упражняться, делать зарядку | to exercise, to work out
 myslieť | думать | to think
+mlčať | молчать | to be silent
 `,
       },
       {
@@ -468,6 +480,11 @@ obedovať | обедать | to have lunch
 raňajkovať | завтракать | to have breakfast
 oddychovať | отдыхать | to rest
 zabudnúť | забыть | to forget
+rozumieť | понимать | to understand
+relaxovať | расслабляться | to relax
+navštevovať | посещать | to visit, to attend
+opravovať | ремонтировать, чинить | to repair
+plakať | плакать | to cry
 `,
       },
       {
@@ -486,6 +503,8 @@ raňajky | завтрак | breakfast | pl
 obed | обед | lunch | m
 večera | ужин | dinner | f
 domáca úloha | домашнее задание | homework | f
+noviny | газета | newspaper | pl
+prestávka | перемена, перерыв | break | f
 voľno | свободное время | free time | n
 `,
       },
@@ -517,6 +536,7 @@ O koľkej? | Во сколько? | At what time?
 Je jedna. | Сейчас час. | It's one o'clock.
 Sú dve. | Сейчас два часа. | It's two o'clock.
 Je päť. | Сейчас пять часов. | It's five o'clock.
+noc | ночь | night | f
 hodina | час; урок | hour; lesson | f
 minúta | минута | minute | f
 ráno | утро, утром | morning | n
@@ -569,6 +589,10 @@ iba | только | only | alt=len
 obchod | магазин | shop | m
 predavač | продавец | shop assistant | m fem=predavačka
 zákazník | покупатель | customer | m fem=zákazníčka
+pokladník | кассир | cashier | m fem=pokladníčka
+vozík | тележка | shopping trolley | m
+predávať | продавать | to sell
+skúšať | примерять; пробовать | to try on; to try
 pokladňa | касса | checkout | f
 košík | корзина | basket | m
 tovar | товар | goods | m
@@ -624,7 +648,7 @@ Milan študuje v Bratislave. | Милан учится в Братиславе. 
 Večer pozerám film. | Вечером я смотрю фильм. | In the evening I watch a film.
 Čo robíš cez víkend? | Что ты делаешь на выходных? | What do you do at the weekend?
 Rád hrám futbal. | Я люблю играть в футбол. | I like playing football.
-Musím písať domácu úlohu. | Мне надо писать домашнее задание. | I have to write my homework.
+Musím písať domácu úlohu. | Мне надо делать домашнее задание. | I have to do my homework.
 Môžem ísť ďalej? | Можно войти? | May I come in?
 Neviem hovoriť po francúzsky. | Я не умею говорить по-французски. | I can't speak French.
 Koľko stojí káva? | Сколько стоит кофе? | How much is the coffee?
@@ -675,6 +699,7 @@ e-mail | электронное письмо | e-mail | m
 surfovať po internete | сидеть в интернете | to surf the internet
 tlačiť | печатать | to print
 ukladať | сохранять | to save
+skenovať | сканировать | to scan
 `,
       },
       {
@@ -694,6 +719,8 @@ fotografovať | фотографировать | to take photos
 kresliť | рисовать (карандашом) | to draw
 maľovať | рисовать красками | to paint
 záľuba | хобби, увлечение | hobby | f
+pozerať sa na | смотреть на | to look at
+ihrisko | спортивная или детская площадка | playground | n
 `,
       },
       {
@@ -713,6 +740,7 @@ les | лес | forest | m
 príroda | природа | nature | f
 kúpele | курорт (с минеральной водой) | spa | pl
 penzión | пансион, гостевой дом | guesthouse | m
+kemp | кемпинг | campsite | m
 bazén | бассейн | swimming pool | m
 lanovka | канатная дорога | cable car | f
 cestovná kancelária | турагентство | travel agency | f
@@ -732,6 +760,7 @@ koza | коза | goat | f
 ovca | овца | sheep | f
 sliepka | курица (птица) | hen | f
 chytať ryby | ловить рыбу | to fish
+rybolov | рыбалка | fishing | m
 ochutnať | попробовать (на вкус) | to taste
 leto | лето | summer | n
 zima | зима; холод | winter; cold | f
@@ -807,6 +836,7 @@ fontána | фонтан | fountain | f
 palác | дворец | palace | m
 trh | рынок | market | m
 supermarket | супермаркет | supermarket | m
+hlavné mesto | столица | capital city | n
 banka | банк | bank | f
 pošta | почта | post office | f
 nábrežie | набережная | embankment | n
@@ -828,6 +858,7 @@ nemocnica | больница | hospital | f
 univerzita | университет | university | f
 informačné centrum | информационный центр | information centre | n
 hotel | гостиница | hotel | m
+jedáleň | столовая | canteen | f
 `,
       },
       {
@@ -854,6 +885,8 @@ pešo | пешком | on foot
         words: `
 Kde sa nachádza...? | Где находится...? | Where is...?
 Ako sa dostanem na...? | Как мне попасть на...? | How do I get to...?
+Kde nájdem...? | Где мне найти...? | Where can I find...?
+odbočiť | повернуть | to turn
 Choďte rovno. | Идите прямо. | Go straight on.
 Odbočte doľava. | Поверните налево. | Turn left.
 Odbočte doprava. | Поверните направо. | Turn right.
@@ -874,6 +907,7 @@ minulý týždeň | на прошлой неделе | last week
 minulý mesiac | в прошлом месяце | last month
 minulý rok | в прошлом году | last year
 kúpiť | купить | to buy
+predať | продать | to sell (once)
 dostať | получить | to get, to receive
 navštíviť | посетить | to visit
 prísť | прийти, приехать | to come, to arrive
@@ -884,6 +918,7 @@ zobudiť sa | проснуться | to wake up
 opýtať sa | спросить | to ask
 odpovedať | отвечать | to answer
 meškať | опаздывать | to be late
+ponáhľať sa | спешить, торопиться | to hurry
 `,
       },
       {
@@ -899,8 +934,9 @@ robotník | рабочий | worker | m
 pokuta | штраф | fine | f
 nálada | настроение | mood | f
 výročie | годовщина | anniversary | n
-slobodný | холостой, неженатый | single | fem=slobodná
+slobodný | неженатый / незамужняя | single, unmarried | fem=slobodná
 šťastie | счастье, удача | happiness, luck | n
+bohatý | богатый | rich
 Gratulujem! | Поздравляю! | Congratulations!
 Čo sa stalo? | Что случилось? | What happened?
 Samozrejme. | Конечно. | Of course.
@@ -948,6 +984,7 @@ Anglicko | Англия | England | n
 Spojené štáty | США | United States | pl alt=USA
 Čína | Китай | China | f
 Japonsko | Япония | Japan | n
+Veľká Británia | Великобритания | Great Britain | f
 `,
       },
       {
@@ -962,12 +999,19 @@ Angličan | англичанин | Englishman | m fem=Angličanka
 Talian | итальянец | Italian (man) | m fem=Talianka
 Španiel | испанец | Spaniard | m fem=Španielka
 Američan | американец | American (man) | m fem=Američanka
+Francúz | француз | Frenchman | m fem=Francúzka
+Číňan | китаец | Chinese (man) | m fem=Číňanka
+Japonec | японец | Japanese (man) | m fem=Japonka
+Brit | британец | Briton | m fem=Britka
 národnosť | национальность | nationality | f
 slovenčina | словацкий язык | Slovak (language) | f
 angličtina | английский язык | English (language) | f
 nemčina | немецкий язык | German (language) | f
 ruština | русский язык | Russian (language) | f
 ukrajinčina | украинский язык | Ukrainian (language) | f
+po taliansky | по-итальянски | in Italian
+po japonsky | по-японски | in Japanese
+po čínsky | по-китайски | in Chinese
 `,
       },
       {
@@ -1043,6 +1087,21 @@ upratovač | уборщик | cleaner | m fem=upratovačka
 inžinier | инженер | engineer | m fem=inžinierka
 manažér | менеджер | manager | m fem=manažérka
 letuška | стюардесса | flight attendant | f
+rybár | рыбак | fisherman | m fem=rybárka
+`,
+      },
+      {
+        id: "6-7", icon: "✌️", sk: "Dvaja, traja, štyria", ru: "Двое, трое, четверо", en: "Two, three, four (people)",
+        words: `
+dvaja | двое (о мужчинах) | two (men)
+traja | трое (о мужчинах) | three (men)
+štyria | четверо (о мужчинах) | four (men)
+dve | две (жен. и ср. род) | two (feminine, neuter)
+dvaja kuchári | двое поваров | two cooks
+dva počítače | два компьютера | two computers
+dve knihy | две книги | two books
+tri autá | три машины | three cars
+štyria chlapci | четверо мальчиков | four boys
 `,
       },
     ],
@@ -1055,7 +1114,7 @@ Tam sú dvaja kuchári. | Там двое поваров. | There are two cooks 
 Na stole sú štyri knihy. | На столе четыре книги. | There are four books on the table.
 Mám dvadsaťosem rokov. | Мне двадцать восемь лет. | I am twenty-eight.
 Som slobodná. | Я не замужем. | I am single. (woman)
-Pracujem ako lektor. | Я работаю преподавателем. | I work as a teacher.
+Pracujem ako lektor. | Я работаю преподавателем (языка). | I work as a lecturer.
 Európa je kontinent. | Европа — это континент. | Europe is a continent.
 To sú moji dobrí priatelia. | Это мои хорошие друзья. | These are my good friends.
 Moja adresa je Štúrova ulica. | Мой адрес — улица Штура. | My address is Štúrova street.

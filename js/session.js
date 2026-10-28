@@ -9,6 +9,10 @@ import { store } from "./store.js";
 import { t, tr, getLang } from "./i18n.js";
 import { speak, hasVoice, beep } from "./speech.js";
 
+// ссылка «сообщить об ошибке» — новый issue на GitHub с подставленным заданием
+const REPO = "https://github.com/Furigin/slovencina-a1";
+const reportUrl = (ctx) => `${REPO}/issues/new?title=${encodeURIComponent("Ошибка: " + ctx)}&body=${encodeURIComponent("Что не так и как правильно:\n\n")}`;
+
 export const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 export const trW = (w) => (getLang() === "en" ? w.en : w.ru); // перевод слова на язык интерфейса
 
@@ -32,12 +36,15 @@ function pool(word, size = 3) {
   // неправильные варианты: сначала из той же темы, потом из того же урока
   const same = WORDS.filter((x) => x.unit === word.unit && x.id !== word.id);
   const lesson = WORDS.filter((x) => x.lesson === word.lesson && x.unit !== word.unit);
-  const used = new Set([mainTr(trW(word)), norm(word.sk)]);
+  // Перевод делим на синонимы («доктор, врач» → [доктор, врач]). Если у варианта
+  // есть общий синоним с уже выбранными — пропускаем, иначе правильных ответов будет два.
+  const syn = (x) => mainTr(trW(x)).split(/[,;/]/).map((t) => t.trim()).filter(Boolean);
+  const used = new Set([...syn(word), norm(word.sk)]);
   const res = [];
   for (const x of [...shuffle(same), ...shuffle(lesson), ...shuffle(WORDS)]) {
-    const key = mainTr(trW(x));
-    if (used.has(key) || used.has(norm(x.sk))) continue;
-    used.add(key); used.add(norm(x.sk));
+    const keys = syn(x);
+    if (keys.some((k) => used.has(k)) || used.has(norm(x.sk))) continue;
+    keys.forEach((k) => used.add(k)); used.add(norm(x.sk));
     res.push(x);
     if (res.length >= size) break;
   }
@@ -198,7 +205,8 @@ export function runSession(root, session, onDone) {
     const title = res.verdict === "ok" ? t("correct") : res.verdict === "almost" ? t("almost") : t("wrong");
     fb.innerHTML = `<div class="fb-title">${ok ? "✔" : "✖"} ${esc(title)}</div>` +
       (res.verdict !== "ok" && res.answer ? `<div class="fb-ans">${esc(t("rightAnswer"))} <b>${esc(res.answer)}</b></div>` : "") +
-      (res.explain && res.verdict !== "ok" ? `<div class="fb-exp">${esc(res.explain)}</div>` : "");
+      (res.explain && res.verdict !== "ok" ? `<div class="fb-exp">${esc(res.explain)}</div>` : "") +
+      (res.verdict !== "ok" ? `<a class="fb-report" target="_blank" rel="noopener" href="${reportUrl(reportContext())}">${esc(t("reportHere"))}</a>` : "");
     mainBtn.textContent = t("next");
     mainBtn.disabled = false;
     skipBtn.style.visibility = "hidden";
@@ -208,6 +216,13 @@ export function runSession(root, session, onDone) {
   }
 
   function next() { idx++; show(); }
+  // что именно было в задании — для сообщения об ошибке
+  function reportContext() {
+    if (current.word) return `${current.word.sk} — ${trW(current.word)} (${current.word.unit})`;
+    if (current.sent) return current.sent.sk;
+    if (current.q) return `${session.id}: ${current.q.prompt} → ${current.q.answer}`;
+    return session.id;
+  }
 
   function finish() {
     cleanup();

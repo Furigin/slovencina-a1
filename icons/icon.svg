@@ -1,9 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- флаг Словакии: триколор + герб (без герба похоже на флаг России) -->
   <clipPath id="r"><rect width="512" height="512" rx="112"/></clipPath>
+  <clipPath id="sh"><path d="M138.2 102.4 H373.8 V265.7 A117.8 133.6 0 0 1 138.2 265.7 Z"/></clipPath>
   <g clip-path="url(#r)">
     <rect width="512" height="171" fill="#ffffff"/>
-    <rect y="171" width="512" height="171" fill="#1a5fd0"/>
-    <rect y="342" width="512" height="170" fill="#e3242b"/>
+    <rect y="171" width="512" height="171" fill="#0b4ea2"/>
+    <rect y="342" width="512" height="170" fill="#ee1c25"/>
   </g>
-  <text x="256" y="256" dy="0.35em" text-anchor="middle" font-family="Arial, sans-serif" font-weight="900" font-size="215" fill="#ffffff" stroke="#1249a3" stroke-width="12" paint-order="stroke">SK</text>
+  <path d="M125.4 89.6 H386.6 V268.4 A130.6 146.3 0 0 1 125.4 268.4 Z" fill="#ffffff"/>
+  <path d="M138.2 102.4 H373.8 V265.7 A117.8 133.6 0 0 1 138.2 265.7 Z" fill="#ee1c25"/>
+  <g clip-path="url(#sh)" fill="#0b4ea2"><ellipse cx="256.0" cy="359.8" rx="56.5" ry="70.7"/><ellipse cx="194.8" cy="356.5" rx="47.1" ry="58.9"/><ellipse cx="317.2" cy="356.5" rx="47.1" ry="58.9"/></g>
+  <g fill="#ffffff">
+    <rect x="243.0" y="138.0" width="25.9" height="173.7"/>
+    <rect x="204.2" y="176.6" width="103.6" height="25.9"/>
+    <rect x="183.0" y="236.0" width="146.0" height="25.9"/>
+  </g>
 </svg>
