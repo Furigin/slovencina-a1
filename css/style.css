@@ -175,6 +175,10 @@ h3 { margin: 14px 0 6px; }
 .sheet-words { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 14px 0; }
 .wchip { padding: 3px 9px; border-radius: 999px; font-size: 14px; background: var(--bg); border: 1px solid var(--line); }
 .wchip.st-learning { border-color: var(--gold); }
+button.wchip { font: inherit; font-size: 14px; color: var(--text); cursor: pointer; }
+button.wchip::after { content: " 🔊"; font-size: 11px; opacity: .6; }
+.no-voice button.wchip::after { content: ""; }
+.fb-say { margin-left: 10px; vertical-align: middle; }
 .wchip.st-known { background: var(--ok-bg); border-color: var(--ok); }
 @keyframes fade { from { opacity: 0; } }
 @keyframes up { from { transform: translateY(40px); opacity: 0; } }

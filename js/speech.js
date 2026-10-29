@@ -1,10 +1,15 @@
 // =====================================================================
-//  ОЗВУЧКА словацких слов встроенным голосом браузера (Web Speech API).
-//  Берём ТОЛЬКО словацкий голос (sk-SK). Чешский не подставляем никогда —
-//  произношение другое. Если словацкого голоса нет — задания на слух
-//  просто не показываются.
+//  ОЗВУЧКА словацких слов.
+//  1) Заранее записанные mp3 в папке audio/ (tools/make-audio.py) — работают
+//     на любом устройстве.
+//  2) Если записи нет — встроенный голос браузера, ТОЛЬКО словацкий (sk-SK).
+//     Чешский не подставляем никогда — произношение другое.
 // =====================================================================
+import { AUDIO } from "./audio-index.js";
+import { audioKey, audioHash } from "./audio-key.js";
+
 let voice = null;
+let player = null; // текущий звук, чтобы новый не накладывался на старый
 const subs = new Set();
 
 function pickVoice() {
@@ -24,10 +29,30 @@ if ("speechSynthesis" in window) {
   setTimeout(pickVoice, 2000);
 }
 
-export function hasVoice() { return !!voice; }
+// есть ли чем озвучивать вообще / конкретный текст
+export function hasVoice() { return AUDIO.size > 0 || !!voice; }
+export function canSpeak(text) { return !!voice || AUDIO.has(audioHash(audioKey(text))); }
 export function onVoice(fn) { subs.add(fn); }
 
 export function speak(text, { slow = false } = {}) {
+  if (!text) return;
+  const hash = audioHash(audioKey(text));
+  if (AUDIO.has(hash)) {
+    try {
+      player?.pause();
+      speechSynthesis?.cancel?.();
+      player = new Audio(`audio/${hash}.mp3`);
+      player.playbackRate = slow ? 0.7 : 1;
+      player.preservesPitch = true;
+      // нет файла (офлайн и не в кэше) — пробуем голос браузера
+      player.play().catch((e) => { if (e?.name !== "NotAllowedError") speakVoice(text, slow); });
+      return;
+    } catch (e) { /* ниже — голос браузера */ }
+  }
+  speakVoice(text, slow);
+}
+
+function speakVoice(text, slow) {
   if (!voice) return;
   try {
     speechSynthesis.cancel();

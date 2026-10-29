@@ -132,14 +132,18 @@ function unitSheet(u) {
       <div class="sheet-ic">${u.icon}</div>
       <h2>${esc(tr(u))}</h2>
       <div class="muted">${esc(u.sk)} · ${esc(t("lesson"))} ${u.lesson} · ${c.learned}/${c.total} ${esc(t("learned"))}</div>
-      <div class="sheet-words">${u.list.slice(0, 40).map((w) => `<span class="wchip st-${store.status(w.id)}">${esc(w.sk)}</span>`).join("")}</div>
+      <div class="sheet-words">${u.list.slice(0, 40).map((w) => `<button class="wchip st-${store.status(w.id)}" data-say="${esc(w.sk)}">${esc(w.sk)}</button>`).join("")}</div>
       <a class="btn primary wide" href="#/s/unit/${u.id}">${esc(store.p.units[u.id]?.plays ? t("continue") : t("start"))}</a>
       <a class="btn wide" href="#/cards/${u.id}">🃏 ${esc(t("cards"))}</a>
       <button class="btn ghost wide sheet-close">${esc(t("close"))}</button>
     </div>`;
   document.body.appendChild(sheet);
   const close = () => sheet.remove();
-  sheet.onclick = (e) => { if (e.target === sheet || e.target.classList.contains("sheet-close") || e.target.closest("a")) close(); };
+  sheet.onclick = (e) => {
+    const chip = e.target.closest("[data-say]");
+    if (chip) return speak(chip.dataset.say); // нажал на слово — послушать
+    if (e.target === sheet || e.target.classList.contains("sheet-close") || e.target.closest("a")) close();
+  };
 }
 
 // =====================================================================

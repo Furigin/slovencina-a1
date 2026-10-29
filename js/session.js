@@ -7,7 +7,7 @@ import { WORDS, LESSONS } from "./data.js";
 import { DRILLS, shuffle } from "./grammar.js";
 import { store } from "./store.js";
 import { t, tr, getLang } from "./i18n.js";
-import { speak, hasVoice, sfx, vibrate } from "./speech.js";
+import { speak, hasVoice, canSpeak, sfx, vibrate } from "./speech.js";
 import { clockSvg, timePhrase, timeDigits, parseTime } from "./clock.js";
 
 // ссылка «сообщить об ошибке» — новый issue на GitHub с подставленным заданием
@@ -55,7 +55,7 @@ function pool(word, size = 3) {
 // задание на слово в зависимости от того, насколько хорошо оно известно
 function wordTask(w, level = null) {
   const b = level ?? (store.word(w.id)?.b || 0);
-  const voice = hasVoice();
+  const voice = canSpeak(w.sk);
   let types;
   if (b <= 1) types = voice ? ["mc-sk", "mc-sk", "listen"] : ["mc-sk"];
   else if (b <= 3) types = voice ? ["mc-tr", "listen", "type"] : ["mc-tr", "type"];
@@ -217,6 +217,14 @@ export function runSession(root, session, onDone) {
       (res.verdict !== "ok" && res.answer ? `<div class="fb-ans">${esc(t("rightAnswer"))} <b>${esc(res.answer)}</b></div>` : "") +
       (res.explain && res.verdict !== "ok" ? `<div class="fb-exp">${esc(res.explain)}</div>` : "") +
       (res.verdict !== "ok" ? `<a class="fb-report" target="_blank" rel="noopener" href="${reportUrl(reportContext())}">${esc(t("reportHere"))}</a>` : "");
+    if (res.speak) {
+      const again = document.createElement("button");
+      again.className = "speak sm fb-say";
+      again.textContent = "🔊";
+      again.title = res.speak;
+      again.onclick = () => speak(res.speak);
+      fb.querySelector(".fb-title").appendChild(again);
+    }
     mainBtn.textContent = t("next");
     mainBtn.disabled = false;
     skipBtn.style.visibility = "hidden";
@@ -270,7 +278,7 @@ export function runSession(root, session, onDone) {
         <div class="prompt">${!toSk ? `<button class="speak">🔊</button>` : ""}<span>${esc(prompt)}</span></div>
         <div class="opts">${it.options.map((o, i) => `<button class="opt" data-i="${i}"><span class="k">${i + 1}</span>${esc(toSk ? o.sk : trW(o))}</button>`).join("")}</div>`;
       if (!toSk) { body.querySelector(".speak").onclick = () => speak(w.sk); if (settings.autoplay) say(w.sk); }
-      return choice(it.options, (o) => o === w, w.sk + (toSk ? "" : " — " + trW(w)), w.sk);
+      return choice(it.options, (o) => o === w, w.sk + (toSk ? "" : " — " + trW(w)), w.sk, toSk ? (o) => o.sk : null);
     },
 
     listen(it) {
@@ -282,7 +290,7 @@ export function runSession(root, session, onDone) {
       body.querySelector(".huge").onclick = () => speak(w.sk);
       body.querySelector(".slow").onclick = () => speak(w.sk, { slow: true });
       setTimeout(() => speak(w.sk), 250);
-      return choice(it.options, (o) => o === w, `${w.sk} — ${trW(w)}`, w.sk);
+      return choice(it.options, (o) => o === w, `${w.sk} — ${trW(w)}`, w.sk, (o) => o.sk);
     },
 
     type(it) {
@@ -384,7 +392,7 @@ export function runSession(root, session, onDone) {
         body.innerHTML = `<div class="ex-label">${esc(t("clockRead"))}</div>
           <div class="clock-wrap">${clockSvg(h, m, 200)}</div>
           <div class="opts">${options.map((o, i) => `<button class="opt" data-i="${i}"><span class="k">${i + 1}</span>${esc(o)}</button>`).join("")}</div>`;
-        return choice(options, (o) => o === phrase, current.__answer, phrase);
+        return choice(options, (o) => o === phrase, current.__answer, phrase, (o) => o);
       }
       if (mode === "pick") {
         body.innerHTML = `<div class="ex-label">${esc(t("clockPick"))}</div>
@@ -461,7 +469,8 @@ export function runSession(root, session, onDone) {
   };
 
   // общий выбор из вариантов
-  function choice(options, isRight, answerText, speakText) {
+  // sayOpt(o) → текст, который надо произнести при выборе варианта (или null)
+  function choice(options, isRight, answerText, speakText, sayOpt = null) {
     let chosen = null;
     current.__answer = answerText;
     body.querySelectorAll(".opt").forEach((b) => {
@@ -469,6 +478,8 @@ export function runSession(root, session, onDone) {
         body.querySelectorAll(".opt").forEach((x) => x.classList.remove("sel"));
         b.classList.add("sel");
         chosen = options[+b.dataset.i];
+        const txt = sayOpt?.(chosen);
+        if (txt && settings.sound) speak(txt);
         setReady(true);
       };
     });
