@@ -39,6 +39,10 @@ export function emptyProgress() {
     ach: {},     // достижение → когда получено
     settings: { lang: "ru", goal: 50, sound: true, autoplay: true, welcomed: false, theme: "auto", remind: true, notify: false },
     lastCheck: 0, // когда последний раз проверял «давно не виденные» слова (для напоминания)
+    daily: null,  // счётчики за сегодня для заданий дня: { date, sessions, perfect, blitz, review, cards, listen, newWords, claimed: [] }
+    freezes: 0,   // заморозки серии (максимум 2)
+    frozen: {},   // дни, спасённые заморозкой: "2026-10-28" → 1
+    mist: {},     // «Мои ошибки»: id слова → сколько раз подряд ответил правильно после ошибки
     nick: "",
     created: Date.now(),
     updated: 0,
@@ -79,6 +83,16 @@ export function merge(a, b) {
   out.created = Math.min(a.created || Date.now(), b.created || Date.now());
   out.updated = Math.max(a.updated || 0, b.updated || 0);
   out.lastCheck = Math.max(a.lastCheck || 0, b.lastCheck || 0);
+  out.frozen = { ...(a.frozen || {}), ...(b.frozen || {}) };
+  out.freezes = newer.freezes || 0;
+  out.mist = { ...(newer.mist || {}) };
+  // задания дня: берём более свежий день, в один день — максимум по каждому счётчику
+  const da = a.daily, db = b.daily;
+  if (!da || !db || da.date !== db.date) out.daily = !da ? db : !db ? da : da.date > db.date ? da : db;
+  else {
+    out.daily = { date: da.date, claimed: [...new Set([...(da.claimed || []), ...(db.claimed || [])])] };
+    for (const k of Object.keys({ ...da, ...db })) if (!["date", "claimed"].includes(k)) out.daily[k] = Math.max(da[k] || 0, db[k] || 0);
+  }
   return out;
 }
 
@@ -89,6 +103,7 @@ function normalize(p) {
     ...e, ...p,
     words: p.words || {}, units: p.units || {}, drills: p.drills || {}, sents: p.sents || {},
     days: p.days || {}, ach: p.ach || {}, settings: { ...e.settings, ...(p.settings || {}) },
+    frozen: p.frozen || {}, mist: p.mist || {},
   };
 }
 
@@ -135,6 +150,7 @@ export const store = {
     w.n++;
     if (correct) {
       w.ok++;
+      if (id in this.p.mist) { this.p.mist[id]++; if (this.p.mist[id] >= 2) delete this.p.mist[id]; }
       // коробка растёт, только если слово новое или пора повторять
       if (w.b === 0 || w.due <= today) {
         w.b = Math.min(w.b + 1, INTERVALS.length - 1);
@@ -142,6 +158,7 @@ export const store = {
       }
     } else {
       w.bad++;
+      this.p.mist[id] = 0;
       w.b = w.b > 3 ? 2 : 1;
       w.due = today; // вернётся в повторение сегодня же
     }
@@ -151,7 +168,7 @@ export const store = {
   },
   // слово показано впервые (карточка «новое слово»)
   introduce(id) {
-    if (!this.p.words[id]) this.p.words[id] = { b: 0, due: dayNum(), n: 0, ok: 0, bad: 0, t: Date.now() };
+    if (!this.p.words[id]) { this.p.words[id] = { b: 0, due: dayNum(), n: 0, ok: 0, bad: 0, t: Date.now() }; this.bumpDaily("newWords"); }
   },
 
   // ---------- опыт ----------
@@ -169,9 +186,24 @@ export const store = {
   get streak() {
     let n = 0;
     const d = new Date();
-    if (!this.p.days[dayKey(d)]) d.setDate(d.getDate() - 1); // сегодня ещё не занимался — считаем со вчера
-    while (this.p.days[dayKey(d)]) { n++; d.setDate(d.getDate() - 1); }
+    const active = (k) => this.p.days[k] || this.p.frozen?.[k];
+    if (!active(dayKey(d))) d.setDate(d.getDate() - 1); // сегодня ещё не занимался — считаем со вчера
+    while (active(dayKey(d))) { n++; d.setDate(d.getDate() - 1); }
     return n;
+  },
+  // Пропущенные дни (до вчерашнего) закрываем заморозками, если они есть.
+  // Возвращает, сколько заморозок потрачено.
+  applyFreezes() {
+    if (!this.p.freezes) return 0;
+    const active = (k) => this.p.days[k] || this.p.frozen[k];
+    const d = new Date(); d.setDate(d.getDate() - 1);
+    const gap = [];
+    while (!active(dayKey(d)) && gap.length < 3) { gap.push(dayKey(d)); d.setDate(d.getDate() - 1); }
+    if (!gap.length || !active(dayKey(d)) || gap.length > this.p.freezes) return 0; // нечего спасать или не хватает
+    gap.forEach((k) => (this.p.frozen[k] = 1));
+    this.p.freezes -= gap.length;
+    this.save();
+    return gap.length;
   },
 
   // ---------- итог занятия ----------
@@ -189,11 +221,52 @@ export const store = {
       obj[key] = r;
     };
     if (kind === "unit") bump(this.p.units, id);
-    if (kind === "drill") bump(this.p.drills, id, true);
+    if (kind === "drill" || kind === "test") bump(this.p.drills, id, true);
     if (kind === "sent") bump(this.p.sents, id, true);
+    this.bumpDaily("sessions");
+    if (perfect) this.bumpDaily("perfect");
+    if (kind === "review") this.bumpDaily("review");
+    if (kind === "cards") this.bumpDaily("cards");
+    if (kind === "drill" && String(id).startsWith("listen-")) this.bumpDaily("listen");
     const newAch = this.checkAchievements(perfect);
     this.save();
     return { xp, pct, perfect, newAch };
+  },
+
+  // ---------- задания дня ----------
+  bumpDaily(key, n = 1) {
+    const today = dayKey();
+    if (!this.p.daily || this.p.daily.date !== today) this.p.daily = { date: today, claimed: [] };
+    this.p.daily[key] = (this.p.daily[key] || 0) + n;
+  },
+  quests() {
+    const today = dayKey();
+    const d = this.p.daily?.date === today ? this.p.daily : { claimed: [] };
+    // три задания на день, одинаковые у всех (зависят только от даты)
+    let seed = [...today].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+    const pool = [...QUESTS];
+    const pickIdx = () => { seed = (seed * 1103515245 + 12345) >>> 0; return seed % pool.length; };
+    const list = [pool.splice(pickIdx(), 1)[0], pool.splice(pickIdx(), 1)[0], pool.splice(pickIdx(), 1)[0]];
+    return list.map((q) => {
+      const have = q.key === "xp" ? this.todayXp : d[q.key] || 0;
+      return { ...q, have: Math.min(have, q.need), done: have >= q.need, claimed: (d.claimed || []).includes(q.id) };
+    });
+  },
+  // выдать награду за выполненные задания: +10 XP каждое, за все три — заморозка серии
+  claimQuests() {
+    const got = [];
+    for (const q of this.quests()) {
+      if (q.done && !q.claimed) {
+        this.bumpDaily("_");
+        this.p.daily.claimed.push(q.id);
+        this.addXp(10);
+        got.push(q);
+      }
+    }
+    let freeze = false;
+    if (got.length && this.quests().every((q) => q.claimed) && this.p.freezes < 2) { this.p.freezes++; freeze = true; }
+    if (got.length) this.save();
+    return { got, freeze };
   },
 
   // ---------- статистика ----------
@@ -215,6 +288,16 @@ export const store = {
     const sum = list.reduce((s, w) => s + Math.min((this.p.words[w.id]?.b || 0), 4) / 4, 0);
     return sum / list.length;
   },
+  unitProgress(unit) {
+    const list = unit.list, today = dayNum();
+    let seen = 0, solid = 0, box = 0, next = Infinity;
+    for (const w of list) {
+      const r = this.p.words[w.id];
+      if (r && r.b > 0) { seen++; box += Math.min(r.b, 5); if (r.b >= 4) solid++; next = Math.min(next, r.due); }
+    }
+    return { total: list.length, seen, solid, done: list.length ? seen / list.length : 0, level: list.length ? Math.floor(box / list.length) : 0, nextIn: next === Infinity ? null : Math.max(0, next - today) };
+  },
+  mistakeWords() { return WORDS.filter((w) => w.id in this.p.mist); },
   dueWords() {
     const today = dayNum();
     return WORDS.filter((w) => {
@@ -256,6 +339,20 @@ export const store = {
     return got;
   },
 };
+
+// задания дня: key — какой счётчик смотреть, need — сколько нужно
+export const QUESTS = [
+  { id: "s2", key: "sessions", need: 2, ru: "Пройди 2 занятия", en: "Finish 2 sessions", icon: "📚" },
+  { id: "s4", key: "sessions", need: 4, ru: "Пройди 4 занятия", en: "Finish 4 sessions", icon: "🏃" },
+  { id: "x30", key: "xp", need: 30, ru: "Набери 30 XP", en: "Earn 30 XP", icon: "⭐" },
+  { id: "x60", key: "xp", need: 60, ru: "Набери 60 XP", en: "Earn 60 XP", icon: "🌟" },
+  { id: "pf", key: "perfect", need: 1, ru: "Занятие без единой ошибки", en: "A session with no mistakes", icon: "💎" },
+  { id: "bz", key: "blitz", need: 1, ru: "Сыграй блиц", en: "Play a blitz", icon: "⚡" },
+  { id: "rv", key: "review", need: 1, ru: "Сделай повторение", en: "Do a review", icon: "🔁" },
+  { id: "cd", key: "cards", need: 1, ru: "Пройди колоду карточек", en: "Go through a card deck", icon: "🃏" },
+  { id: "ls", key: "listen", need: 1, ru: "Пройди аудирование", en: "Do a listening task", icon: "🎧" },
+  { id: "nw", key: "newWords", need: 8, ru: "Узнай 8 новых слов", en: "Meet 8 new words", icon: "🌱" },
+];
 
 export const ACHIEVEMENTS = [
   ["first", "🐣", "Первые шаги", "First steps", "Пройди первое занятие", "Finish your first session"],

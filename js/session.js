@@ -105,6 +105,19 @@ export function buildSentenceSession(lesson) {
   return { kind: "sent", id: String(lesson.id), title: `${t("sentences")} · ${t("lesson")} ${lesson.id}`, items };
 }
 
+// Контрольная по уроку: 12 слов + 6 вопросов грамматики + 2 предложения, без повторов ошибок
+export function buildTestSession(lesson) {
+  const words = shuffle(WORDS.filter((w) => w.lesson === lesson.id)).slice(0, 12);
+  const items = words.map((w) => wordTask(w, 2 + Math.floor(Math.random() * 3)));
+  const drills = DRILLS.filter((d) => d.lesson === lesson.id);
+  for (let i = 0; i < 6 && drills.length; i++) {
+    const q = drills[i % drills.length].gen();
+    items.push(q.item ? q.item : { type: "q", q });
+  }
+  items.push(...buildSentenceSession(lesson).items.slice(0, 2));
+  return { kind: "test", id: "test-" + lesson.id, title: `📝 ${t("testTitle")} · ${t("lesson")} ${lesson.id}`, items: shuffle(items), noRetry: true };
+}
+
 export function buildDrillSession(drill) {
   const items = [];
   const seen = new Set();
@@ -168,7 +181,6 @@ export function runSession(root, session, onDone) {
   function cleanup() { document.removeEventListener("keydown", onKey); }
 
   const settings = store.settings;
-  const say = (text) => { if (settings.sound) speak(text); };
 
   function setReady(ok) { mainBtn.disabled = !ok; }
   function progress() { barFill.style.width = `${Math.round((idx / queue.length) * 100)}%`; }
@@ -200,7 +212,7 @@ export function runSession(root, session, onDone) {
       // оценка слова для интервального повторения (один раз за занятие)
       const w = current.word;
       if (w && !graded.has(w.id) && !current.__retry) { graded.add(w.id); store.grade(w.id, ok); }
-      if (!ok && !isRetry && !current.__retry) { const copy = { ...current, __retry: true }; retried.add(copy); queue.push(copy); }
+      if (!ok && !isRetry && !current.__retry && !session.noRetry) { const copy = { ...current, __retry: true }; retried.add(copy); queue.push(copy); }
     }
     if (!current.__retry) {
       combo = ok ? combo + 1 : 0;
@@ -229,7 +241,6 @@ export function runSession(root, session, onDone) {
     mainBtn.disabled = false;
     skipBtn.style.visibility = "hidden";
     body.querySelectorAll("input, .opt, .tile").forEach((x) => (x.disabled = true));
-    if (res.speak) say(res.speak);
     mainBtn.focus();
   }
 
@@ -263,7 +274,6 @@ export function runSession(root, session, onDone) {
           ${w.g ? `<div class="intro-g">${genderLabel(w.g)}</div>` : ""}
         </div>`;
       body.querySelector(".speak").onclick = () => speak(w.sk);
-      if (settings.autoplay) say(w.sk);
       mainBtn.textContent = t("gotIt");
       skipBtn.style.visibility = "hidden";
       setReady(true);
@@ -277,7 +287,7 @@ export function runSession(root, session, onDone) {
         <div class="ex-label">${esc(toSk ? t("chooseSlovak") : t("chooseTranslation"))}</div>
         <div class="prompt">${!toSk ? `<button class="speak">🔊</button>` : ""}<span>${esc(prompt)}</span></div>
         <div class="opts">${it.options.map((o, i) => `<button class="opt" data-i="${i}"><span class="k">${i + 1}</span>${esc(toSk ? o.sk : trW(o))}</button>`).join("")}</div>`;
-      if (!toSk) { body.querySelector(".speak").onclick = () => speak(w.sk); if (settings.autoplay) say(w.sk); }
+      if (!toSk) body.querySelector(".speak").onclick = () => speak(w.sk);
       return choice(it.options, (o) => o === w, w.sk + (toSk ? "" : " — " + trW(w)), w.sk, toSk ? (o) => o.sk : null);
     },
 
@@ -289,8 +299,7 @@ export function runSession(root, session, onDone) {
         <div class="opts">${it.options.map((o, i) => `<button class="opt" data-i="${i}"><span class="k">${i + 1}</span>${esc(o.sk)}</button>`).join("")}</div>`;
       body.querySelector(".huge").onclick = () => speak(w.sk);
       body.querySelector(".slow").onclick = () => speak(w.sk, { slow: true });
-      setTimeout(() => speak(w.sk), 250);
-      return choice(it.options, (o) => o === w, `${w.sk} — ${trW(w)}`, w.sk, (o) => o.sk);
+            return choice(it.options, (o) => o === w, `${w.sk} — ${trW(w)}`, w.sk, (o) => o.sk);
     },
 
     type(it) {
@@ -304,8 +313,7 @@ export function runSession(root, session, onDone) {
       if (it.listen) {
         body.querySelector(".huge").onclick = () => speak(w.sk);
         body.querySelector(".slow").onclick = () => speak(w.sk, { slow: true });
-        setTimeout(() => speak(w.sk), 250);
-      }
+              }
       const input = wireTypeBox();
       return {
         check() {
@@ -328,7 +336,6 @@ export function runSession(root, session, onDone) {
       body.querySelectorAll(".m").forEach((b) => {
         b.onclick = () => {
           if (b.classList.contains("done")) return;
-          if (b.dataset.side === "l") speak(b.textContent);
           if (!sel || sel.dataset.side === b.dataset.side) {
             body.querySelectorAll(`.m[data-side="${b.dataset.side}"]`).forEach((x) => x.classList.remove("sel"));
             b.classList.add("sel"); sel = b; return;
@@ -399,7 +406,6 @@ export function runSession(root, session, onDone) {
           <div class="prompt">${sayBtn}<span>${esc(phrase)}</span></div>
           <div class="clock-grid">${it.options.map((o, i) => `<button class="opt clock-opt" data-i="${i}" aria-label="${i + 1}">${clockSvg(o.h, o.m, 120)}</button>`).join("")}</div>`;
         body.querySelector(".speak").onclick = () => speak(phrase);
-        if (settings.autoplay) say(phrase);
         return choice(it.options, right, current.__answer, phrase);
       }
       if (mode === "set") {
@@ -427,7 +433,6 @@ export function runSession(root, session, onDone) {
           draw(); setReady(true);
         }));
         body.querySelector(".speak").onclick = () => speak(phrase);
-        if (settings.autoplay) say(phrase);
         draw(); setReady(true);
         return { check: () => ({ verdict: ch === h && cm === m ? "ok" : "bad", answer: current.__answer, speak: phrase }) };
       }
@@ -478,8 +483,6 @@ export function runSession(root, session, onDone) {
         body.querySelectorAll(".opt").forEach((x) => x.classList.remove("sel"));
         b.classList.add("sel");
         chosen = options[+b.dataset.i];
-        const txt = sayOpt?.(chosen);
-        if (txt && settings.sound) speak(txt);
         setReady(true);
       };
     });

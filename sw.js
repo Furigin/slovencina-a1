@@ -1,10 +1,10 @@
 // Офлайн-режим: сначала сеть, если её нет — кэш.
 // При изменениях сайта поменяй версию, чтобы старый кэш удалился.
-const CACHE = "slovencina-v5";
+const CACHE = "slovencina-v6";
 const FILES = [
   "./", "index.html", "css/style.css", "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png",
   "js/app.js", "js/data.js", "js/grammar.js", "js/store.js", "js/cloud.js", "js/session.js",
-  "js/i18n.js", "js/speech.js", "js/firebase-config.js", "js/extra.js", "js/clock.js", "js/audio-index.js", "js/audio-key.js", "icons/icon-512.png",
+  "js/i18n.js", "js/speech.js", "js/firebase-config.js", "js/extra.js", "js/clock.js", "js/audio-index.js", "js/audio-key.js", "js/listening.js", "icons/icon-512.png",
 ];
 
 self.addEventListener("install", (e) => {
@@ -18,8 +18,11 @@ self.addEventListener("fetch", (e) => {
   // Firebase и прочие чужие запросы не трогаем (кроме шрифтов)
   if (e.request.method !== "GET") return;
   if (url.origin !== location.origin && !url.host.includes("fonts.g")) return;
+  // свои файлы (кроме аудио) всегда сверяем с сервером, иначе после обновления
+  // браузер может смешать новые и старые версии модулей
+  const fresh = url.origin === location.origin && !url.pathname.includes("/audio/");
   e.respondWith(
-    fetch(e.request)
+    fetch(e.request, fresh ? { cache: "no-cache" } : undefined)
       .then((res) => {
         const copy = res.clone();
         caches.open(CACHE).then((c) => c.put(e.request, copy));

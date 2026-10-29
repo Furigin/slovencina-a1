@@ -1,7 +1,9 @@
 // Ключ и имя аудиофайла для текста: одинаково в браузере и в скриптах генерации.
 // «Dobrý deň!» → ключ «dobrý deň!» → файл audio/<хэш>.mp3
-export function audioKey(text) {
-  return String(text).replace(/\.\.\.|…/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+// voice: "f" — женский голос (по умолчанию), "m" — мужской (ключ с приставкой «m|»)
+export function audioKey(text, voice = "f") {
+  const k = String(text).replace(/\.\.\.|…/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+  return voice === "m" ? "m|" + k : k;
 }
 // FNV-1a 32 бита → 8 hex-символов
 export function audioHash(key) {

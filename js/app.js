@@ -4,11 +4,12 @@
 import { LESSONS, WORDS, UNIT_BY_ID, WORD_BY_ID, EXTRA_UNITS } from "./data.js";
 import { DRILLS, CHEATSHEETS, PRESENT, commonPrefix, shuffle, numToSk, randomTime, clockOptions } from "./grammar.js";
 import { clockSvg, timePhrase } from "./clock.js";
+import { DIALOGS } from "./listening.js";
 import { store, ACHIEVEMENTS, levelInfo, dayKey, dayNum, exportProgress, importProgress, GOALS, localGet, localSet } from "./store.js";
 import { cloud, initCloud, login, register, logout, resetPassword, authErrorKey, validNick, fetchLeaderboard, takeGuestMergedFlag } from "./cloud.js";
 import { t, tr, setLang, getLang } from "./i18n.js";
-import { speak, hasVoice, onVoice, sfx, vibrate } from "./speech.js";
-import { esc, trW, runSession, buildUnitSession, buildReviewSession, buildSentenceSession, buildDrillSession, genderLabel } from "./session.js";
+import { speak, stopSpeaking, hasVoice, onVoice, sfx, vibrate } from "./speech.js";
+import { esc, trW, runSession, buildUnitSession, buildReviewSession, buildSentenceSession, buildDrillSession, buildTestSession, genderLabel } from "./session.js";
 
 const app = document.getElementById("app");
 const go = (hash) => { location.hash = hash; };
@@ -84,12 +85,11 @@ function screenLearn() {
         <div class="lesson-bar"><div style="width:${c.total ? (c.learned / c.total) * 100 : 0}%"></div></div>
         <div class="units">
           ${l.units.map((u) => {
-            const m = store.unitMastery(u);
-            const plays = store.p.units[u.id]?.plays || 0;
-            return `<button class="unit ${u.id === rec ? "rec" : ""} ${m >= 0.99 ? "gold" : ""}" data-unit="${u.id}">
-              <span class="unit-ring" style="--p:${Math.round(m * 100)}"><span class="unit-ic">${u.icon}</span></span>
+            const pr = store.unitProgress(u);
+            return `<button class="unit ${u.id === rec ? "rec" : ""} ${pr.level >= 5 ? "gold" : ""}" data-unit="${u.id}">
+              <span class="unit-ring" style="--p:${Math.round(pr.done * 100)}"><span class="unit-ic">${u.icon}</span>${pr.seen ? `<span class="unit-lvl">${pr.level >= 5 ? "👑" : "★" + pr.level}</span>` : ""}</span>
               <span class="unit-name">${esc(tr(u))}</span>
-              <span class="unit-sub">${u.list.length} ${esc(t("words"))}${plays ? ` · ${"★".repeat(Math.min(3, plays))}` : ""}</span>
+              <span class="unit-sub">${pr.seen}/${pr.total} ${esc(t("words"))}</span>
               ${u.id === rec ? `<span class="rec-tag">${esc(t("recommended"))}</span>` : ""}
             </button>`;
           }).join("")}
@@ -102,12 +102,15 @@ function screenLearn() {
           }).join("")}
           ${l.id === 3 ? `<a class="chip big" href="#/verbs">📘 ${esc(t("verbsTitle"))}</a>` : ""}
           ${(BLITZ_BY_LESSON[l.id] || []).map((k) => `<a class="chip blitz" href="#/blitz/${k}">⚡ ${esc(t("blitz_" + k))}${store.p.drills["blitz-" + k] ? ` · ${store.p.drills["blitz-" + k].best}` : ""}</a>`).join("")}
+          ${DIALOGS.filter((d) => d.lesson === l.id).map((d) => { const r = store.p.drills["listen-" + d.id]; return `<a class="chip listen" href="#/listen/${d.id}">🎧 ${esc(tr(d))}${r ? ` · ${r.best}%` : ""}</a>`; }).join("")}
+          <a class="chip test" href="#/s/test/${l.id}">📝 ${esc(t("testTitle"))}${store.p.drills["test-" + l.id] ? ` · ${gradeOf(store.p.drills["test-" + l.id].best).n}` : ""}</a>
           <a class="chip ghost" href="#/grammar/${l.id}">📄 ${esc(t("cheatsheet"))}</a>
         </div>
       </section>`;
   }).join("");
 
   app.innerHTML = frame("learn", `
+    ${questsCard()}
     ${due ? `<a class="banner" href="#/review">🔁 ${esc(t("reviewDue"))}: <b>${due}</b> → </a>` : ""}
     ${!hasVoice() && !localGet("voiceNoteHidden") ? `<div class="note small">🔇 ${esc(t("noVoice"))} <button class="link hide-voice">✕</button></div>` : ""}
     ${html}`);
@@ -123,15 +126,45 @@ function screenLearn() {
   }
 }
 
+// карточка «Задания на сегодня»
+function questsCard() {
+  const qs = store.quests();
+  const all = qs.every((q) => q.claimed);
+  return `<div class="card quests ${all ? "all" : ""}">
+    <div class="q-head"><b>🎯 ${esc(t("questsTitle"))}</b><span class="muted small">${store.p.freezes ? `🧊×${store.p.freezes}` : ""}</span></div>
+    ${qs.map((q) => `<div class="q-row ${q.claimed ? "done" : ""}">
+      <span class="q-ic">${q.claimed ? "✅" : q.icon}</span>
+      <div class="q-body"><span>${esc(getLang() === "en" ? q.en : q.ru)}</span><div class="q-bar"><div style="width:${(q.have / q.need) * 100}%"></div></div></div>
+      <span class="q-num">${q.have}/${q.need}</span>
+    </div>`).join("")}
+    <small class="muted">${esc(all ? t("questsAllDone") : t("questsHint"))}</small>
+  </div>`;
+}
+// выдать награды за задания дня и показать уведомление
+function checkQuests() {
+  const { got, freeze } = store.claimQuests();
+  if (!got.length) return;
+  toast(`🎯 ${t("questDone")} +${got.length * 10} XP${freeze ? " · 🧊 " + t("freezeGot") : ""}`);
+  if (store.settings.sound) sfx("combo");
+}
+
 function unitSheet(u) {
   const c = store.counts(new Set(u.list.map((w) => w.id)));
+  const pr = store.unitProgress(u);
+  const next = pr.nextIn === null ? "" : pr.nextIn === 0 ? t("nextToday") : pr.nextIn === 1 ? t("nextTomorrow") : t("nextInDays").replace("{n}", pr.nextIn);
   const sheet = document.createElement("div");
   sheet.className = "sheet-wrap";
   sheet.innerHTML = `
     <div class="sheet">
       <div class="sheet-ic">${u.icon}</div>
       <h2>${esc(tr(u))}</h2>
-      <div class="muted">${esc(u.sk)} · ${esc(t("lesson"))} ${u.lesson} · ${c.learned}/${c.total} ${esc(t("learned"))}</div>
+      <div class="muted">${esc(u.sk)} · ${esc(t("lesson"))} ${u.lesson}</div>
+      <div class="unit-stats">
+        <div><b>${pr.seen}/${pr.total}</b><small>${esc(t("statSeen"))}</small></div>
+        <div><b>${pr.solid}/${pr.total}</b><small>${esc(t("statSolid"))}</small></div>
+        <div><b>${pr.level >= 5 ? "👑" : "★" + pr.level}/5</b><small>${esc(t("statLevel"))}</small></div>
+      </div>
+      <p class="muted small">${esc(t("levelHint"))}${next ? " " + esc(next) : ""}</p>
       <div class="sheet-words">${u.list.slice(0, 40).map((w) => `<button class="wchip st-${store.status(w.id)}" data-say="${esc(w.sk)}">${esc(w.sk)}</button>`).join("")}</div>
       <a class="btn primary wide" href="#/s/unit/${u.id}">${esc(store.p.units[u.id]?.plays ? t("continue") : t("start"))}</a>
       <a class="btn wide" href="#/cards/${u.id}">🃏 ${esc(t("cards"))}</a>
@@ -166,6 +199,7 @@ function screenReview() {
         <a class="card link-card" href="#/s/review/weak">💪 ${esc(t("reviewWeak"))}<small>${weak.slice(0, 4).map((w) => esc(w.sk)).join(", ")}</small></a>
         <a class="card link-card" href="#/s/review/all">📦 ${esc(t("reviewAll"))}<small>${learned} ${esc(t("words"))}</small></a>
       </div>
+      ${store.mistakeWords().length ? `<a class="card link-card mist" href="#/s/review/mist">❌ ${esc(t("mistakes"))} (${store.mistakeWords().length})<small>${store.mistakeWords().slice(0, 6).map((w) => esc(w.sk)).join(", ")}</small></a>` : ""}
       <div class="boxes">${[1, 2, 3, 4, 5, 6, 7].map((b) => {
         const n = WORDS.filter((w) => store.word(w.id)?.b === b).length;
         return `<div class="box"><div class="box-bar" style="height:${Math.min(100, n * 2)}%"></div><b>${n}</b><small>${b}</small></div>`;
@@ -321,7 +355,6 @@ function screenProfile() {
         <select class="set-goal">${GOALS.map((g, i) => `<option value="${g}" ${s.goal === g ? "selected" : ""}>${g} XP — ${esc(t(["goalEasy", "goalNormal", "goalHard"][i]))}</option>`).join("")}</select>
       </label>
       <label class="check"><input type="checkbox" class="set-sound" ${s.sound ? "checked" : ""}> ${esc(t("sound"))}</label>
-      <label class="check"><input type="checkbox" class="set-auto" ${s.autoplay ? "checked" : ""}> ${esc(t("autoplay"))}</label>
       <label>${esc(t("theme"))}
         <select class="set-theme">${["auto", "light", "dark"].map((v) => `<option value="${v}" ${s.theme === v ? "selected" : ""}>${esc(t("theme_" + v))}</option>`).join("")}</select>
       </label>
@@ -349,7 +382,6 @@ function screenProfile() {
   app.querySelector(".set-lang").onchange = (e) => { store.setSetting("lang", e.target.value); setLang(e.target.value); render(); };
   app.querySelector(".set-goal").onchange = (e) => { store.setSetting("goal", +e.target.value); render(); };
   app.querySelector(".set-sound").onchange = (e) => store.setSetting("sound", e.target.checked);
-  app.querySelector(".set-auto").onchange = (e) => store.setSetting("autoplay", e.target.checked);
   app.querySelector(".set-theme").onchange = (e) => { store.setSetting("theme", e.target.value); applyTheme(); };
   app.querySelector(".set-remind").onchange = (e) => store.setSetting("remind", e.target.checked);
   app.querySelector(".set-notify").onchange = (e) => enableNotifications(e.target.checked);
@@ -386,6 +418,9 @@ const HELP = {
     ["🧩", "Грамматика", "Под каждым уроком — тренажёры (byť, род, падежи, времена…) и «Шпаргалка» с таблицами. «Предложения» — собери фразу из слов."],
     ["🎲", "Новые слова", "Вкладка «Слова» → «Дай слова!»: 10 карточек из ~600 частотных слов вне учебника. Потом можно закрепить квизом."],
     ["🕐", "Часы и блиц", "В уроке 3 — часы с циферблатом и «📘 Окончания глаголов». «⚡ Блиц» — 60 секунд на скорость, побей свой рекорд."],
+    ["🎯", "Задания дня и заморозки", "Каждый день — 3 задания, за каждое +10 XP. Выполнил все три — получаешь 🧊 заморозку: если пропустишь день, серия 🔥 не сгорит (можно накопить 2)."],
+    ["🎧", "Аудирование и контрольная", "Под каждым уроком: 🎧 диалоги двумя голосами с вопросами (текст можно скрыть) и 📝 контрольная — 20 вопросов с оценкой от 1 до 5, как в словацкой школе."],
+    ["★", "Кольцо и уровень темы", "Кольцо заполняется, когда ты встретил все слова темы. ★1–★5 — насколько прочно ты их помнишь: уровень растёт, когда ты правильно вспоминаешь слова через 1, 2, 4, 7… дней. 👑 — тема закреплена."],
     ["🧠", "Напоминание", "Раз в 2 дня сайт предложит проверить слова, которые ты давно не видел. Выключается в профиле."],
     ["⌨️", "Ввод", "Под полем есть кнопки á ä č ď ľ ô š ť ž… Если забыл диакритику, ответ засчитается, но ты увидишь правильное написание. На ПК: Enter — проверить, цифры 1–4 — выбрать вариант."],
     ["🔊", "Озвучка", "Работает, если в устройстве есть словацкий голос: обычно в Chrome на Android и в Edge на ПК. Если голоса нет — задания на слух просто пропускаются."],
@@ -400,6 +435,9 @@ const HELP = {
     ["🧩", "Grammar", "Under each lesson: grammar drills and a cheat sheet with tables. 'Sentences' — build a phrase from tiles."],
     ["🎲", "New words", "Words tab → 'Give me words!': 10 cards from ~600 common words beyond the textbook, then a quiz."],
     ["🕐", "Clock & blitz", "Lesson 3 has a real clock and the 'Verb endings' guide. '⚡ Blitz' — 60 seconds against your record."],
+    ["🎯", "Daily quests & freezes", "3 quests a day, +10 XP each. Finish all three to get a 🧊 freeze that saves your 🔥 streak if you skip a day (max 2)."],
+    ["🎧", "Listening & tests", "Each lesson has 🎧 two-voice dialogues with questions and a 📝 test of 20 questions graded 1–5 like in Slovak schools."],
+    ["★", "Ring & topic level", "The ring fills when you've met every word. ★1–★5 shows how well you remember them; it grows as you recall words after 1, 2, 4, 7… days. 👑 = mastered."],
     ["🧠", "Reminder", "Every 2 days you'll be offered a check of words you haven't seen for a while. Can be turned off in Profile."],
     ["⌨️", "Typing", "Use the á ä č ď ľ ô š ť ž buttons. Missing accents still count, but you'll see the correct spelling. On PC: Enter checks, keys 1–4 pick an option."],
     ["🔊", "Voice", "Works if your device has a Slovak voice (usually Chrome on Android, Edge on PC). Without it, listening tasks are skipped."],
@@ -567,6 +605,7 @@ function runCards(deck, { id, title, back, quiz = false }) {
       }
       app.querySelector(".res-next").onclick = () => go(back);
       celebrate(res, xpBefore);
+      checkQuests();
       return;
     }
     const w = deck[i];
@@ -590,7 +629,6 @@ function runCards(deck, { id, title, back, quiz = false }) {
       </div>`;
     app.querySelector(".flash").onclick = () => { flipped = !flipped; if (store.settings.sound) sfx("tap"); draw(); };
     app.querySelector(".c-say").onclick = () => speak(w.sk);
-    if (!flipped && store.settings.autoplay) speak(w.sk);
     const answer = (good) => {
       if (!store.word(w.id)) store.introduce(w.id);
       store.grade(w.id, good);
@@ -617,10 +655,12 @@ function startSession(kind, id) {
     const words = id === "weak" ? store.weakWords().slice(0, 15)
       : id === "all" ? [...store.weakWords()].sort(() => Math.random() - 0.5)
       : id === "old" ? store.oldWords().slice(0, 12)
+      : id === "mist" ? store.mistakeWords().slice(0, 15)
       : store.dueWords();
     if (!words.length) return go("#/review");
     s = buildReviewSession(words);
   }
+  if (kind === "test") { const l = LESSONS.find((x) => x.id === +id); if (l) s = buildTestSession(l); }
   if (kind === "quiz") {
     if (!lastDeck.length) return go("#/dict");
     s = buildReviewSession(lastDeck);
@@ -632,14 +672,20 @@ function startSession(kind, id) {
   runSession(app, s, (res) => {
     if (!res) return go(back);
     if (kind === "review" && id === "old") { store.p.lastCheck = Date.now(); store.save(); }
-    app.innerHTML = resultHtml(res, s.title, xpBefore);
+    app.innerHTML = resultHtml(res, s.title, xpBefore, kind === "test");
     app.querySelector(".res-next").onclick = () => go(back);
     app.querySelector(".res-next").focus();
     celebrate(res, xpBefore);
+    checkQuests();
   });
 }
 
-function resultHtml(res, title, xpBefore = store.xp) {
+// оценка как в словацкой школе: 1 — лучшая, 5 — худшая
+function gradeOf(pct) {
+  const g = pct >= 90 ? 1 : pct >= 75 ? 2 : pct >= 55 ? 3 : pct >= 35 ? 4 : 5;
+  return { n: g, sk: ["", "výborný", "chválitebný", "dobrý", "dostatočný", "nedostatočný"][g] };
+}
+function resultHtml(res, title, xpBefore = store.xp, isTest = false) {
   const goal = store.settings.goal;
   const lvlUp = levelInfo(store.xp).lvl > levelInfo(xpBefore).lvl;
   const goalHit = store.todayXp >= goal && store.todayXp - res.xp < goal;
@@ -653,6 +699,7 @@ function resultHtml(res, title, xpBefore = store.xp) {
         <div class="res-box acc"><small>${esc(t("accuracy"))}</small><b>${res.pct}%</b></div>
         <div class="res-box st"><small>${esc(t("streakDays"))}</small><b>🔥 ${store.streak}</b></div>
       </div>
+      ${isTest ? `<div class="grade g${gradeOf(res.pct).n}"><b>${gradeOf(res.pct).n}</b><span>${esc(t("grade"))}: ${gradeOf(res.pct).sk}</span></div>` : ""}
       ${res.perfect ? `<p class="good">${esc(t("perfect"))}</p>` : ""}
       ${res.bestCombo >= 3 ? `<p class="good">🔥 ${esc(t("bestCombo"))}: ${res.bestCombo}</p>` : ""}
       ${lvlUp ? `<div class="lvl-up">⭐ ${esc(t("levelUp"))} ${levelInfo(store.xp).lvl}!</div>` : ""}
@@ -891,6 +938,7 @@ function finishBlitz(kind, key, best, score, wrong) {
   r.plays++; r.t = Date.now(); r.best = Math.max(r.best || 0, score);
   store.p.drills[key] = r;
   store.addXp(score);
+  store.bumpDaily("blitz");
   store.save();
   const record = score > best;
   app.innerHTML = `
@@ -906,6 +954,81 @@ function finishBlitz(kind, key, best, score, wrong) {
       <a class="btn wide" href="#/">${esc(t("continue"))}</a>
     </div>`;
   celebrate({ pct: record && score > 0 ? 100 : 40 }, xpBefore);
+  checkQuests();
+}
+
+// =====================================================================
+//  АУДИРОВАНИЕ: слушаем диалог, потом отвечаем на вопросы
+// =====================================================================
+function screenListen(id) {
+  const d = DIALOGS.find((x) => x.id === id);
+  if (!d) return go("#/");
+  const en = getLang() === "en";
+  const showText = !!screenListen.showText, showTr = !!screenListen.showTr;
+  let playing = false;
+  app.innerHTML = frame("learn", `
+    <a class="link" href="#/">← ${esc(t("navLearn"))}</a>
+    <h1>🎧 ${esc(tr(d))}</h1>
+    <p class="muted">${esc(d.sk)} · ${esc(t("lesson"))} ${d.lesson} · ${esc(t("listenHint"))}</p>
+    <button class="btn primary wide l-play">▶ ${esc(t("listenPlay"))}</button>
+    <div class="l-toggles">
+      <label class="check"><input type="checkbox" class="l-text" ${showText ? "checked" : ""}> ${esc(t("showText"))}</label>
+      <label class="check"><input type="checkbox" class="l-tr" ${showTr ? "checked" : ""}> ${esc(t("showTr"))}</label>
+    </div>
+    <div class="dialog ${showText ? "" : "hidden-text"}">
+      ${d.lines.map(([who, sk, ru, enT], i) => `<div class="d-line ${who}" data-i="${i}">
+        <span class="d-av">${who === "m" ? "👨" : "👩"}</span>
+        <div class="d-bubble"><small>${esc(d.people[who])}</small><span class="d-sk">${esc(sk)}</span>${showTr ? `<span class="d-tr">${esc(en ? enT : ru)}</span>` : ""}</div>
+        <button class="speak sm" data-line="${i}">🔊</button>
+      </div>`).join("")}
+    </div>
+    <h2>❓ ${esc(t("questions"))}</h2>
+    <div class="l-qs">${d.questions.map((q, qi) => `<div class="card l-q" data-q="${qi}">
+      <b>${qi + 1}. ${esc(en ? q.en : q.ru)}</b>
+      <div class="opts">${q.options.map((o, oi) => `<button class="opt" data-o="${oi}">${esc(en ? o[1] : o[0])}</button>`).join("")}</div>
+    </div>`).join("")}</div>
+    <div class="l-result"></div>`);
+
+  const lineEls = [...app.querySelectorAll(".d-line")];
+  const playLine = (i) => { lineEls.forEach((x) => x.classList.toggle("now", +x.dataset.i === i)); return speak(d.lines[i][1], { who: d.lines[i][0] }); };
+  const playBtn = app.querySelector(".l-play");
+  playBtn.onclick = async () => {
+    if (playing) { playing = false; stopSpeaking(); playBtn.textContent = "▶ " + t("listenPlay"); return; }
+    playing = true; playBtn.textContent = "⏸ " + t("listenStop");
+    for (let i = 0; i < d.lines.length && playing; i++) {
+      await playLine(i);
+      await new Promise((r) => setTimeout(r, 350)); // пауза между репликами
+    }
+    playing = false; playBtn.textContent = "▶ " + t("listenPlay");
+    lineEls.forEach((x) => x.classList.remove("now"));
+  };
+  app.querySelectorAll("[data-line]").forEach((b) => (b.onclick = () => { playing = false; playLine(+b.dataset.line); }));
+  app.querySelector(".l-text").onchange = (e) => { screenListen.showText = e.target.checked; app.querySelector(".dialog").classList.toggle("hidden-text", !e.target.checked); };
+  app.querySelector(".l-tr").onchange = (e) => { screenListen.showTr = e.target.checked; screenListen(id); };
+
+  // вопросы: ответ сразу проверяется
+  let answered = 0, right = 0;
+  app.querySelectorAll(".l-q").forEach((box) => {
+    const q = d.questions[+box.dataset.q];
+    box.querySelectorAll(".opt").forEach((b) => (b.onclick = () => {
+      if (box.classList.contains("answered")) return;
+      box.classList.add("answered");
+      const ok = +b.dataset.o === q.answer;
+      b.classList.add(ok ? "right" : "wrong");
+      box.querySelector(`[data-o="${q.answer}"]`).classList.add("right");
+      if (store.settings.sound) sfx(ok ? "ok" : "bad");
+      if (!ok) vibrate();
+      answered++; if (ok) right++;
+      if (answered === d.questions.length) {
+        const xpBefore = store.xp;
+        const res = store.finishSession("drill", "listen-" + d.id, { correct: right, total: answered, mistakes: answered - right });
+        app.querySelector(".l-result").innerHTML = `<div class="card center"><b>${right}/${answered}</b> · +${res.xp} XP
+          <br><br><a class="btn wide" href="#/">${esc(t("continue"))}</a></div>`;
+        celebrate(res, xpBefore);
+        checkQuests();
+      }
+    }));
+  });
 }
 
 // =====================================================================
@@ -916,12 +1039,14 @@ function render() {
   const [a, b, c] = parts;
   window.scrollTo(0, 0);
   app.onclick = null; // обработчики экранов не должны переживать смену экрана
+  stopSpeaking();
   if (!store.settings.welcomed && !localGet("welcomed") && a !== "login") return screenWelcome();
   if (a === "s") return startSession(b, c);
   if (a === "cards") return screenCards(b);
   if (a === "rand") return screenRandom(b);
   if (a === "verbs") return screenVerbs();
   if (a === "blitz") return screenBlitz(b);
+  if (a === "listen") return screenListen(b);
   if (a === "review") return screenReview();
   if (a === "dict") return screenDict();
   if (a === "grammar") return screenGrammar(b);
@@ -970,6 +1095,8 @@ async function boot() {
   await initCloud();
   setLang(store.settings.lang || getLang());
   applyTheme();
+  const spent = store.applyFreezes();
+  if (spent) setTimeout(() => toast(`🧊 ${t("freezeUsed").replace("{n}", spent)}`), 800);
   store.subscribe(() => { localSet("lang", store.settings.lang); });
   cloud.on(() => { setLang(store.settings.lang || getLang()); applyTheme(); refreshChrome(); });
   // без словацкого голоса прячем кнопки 🔊

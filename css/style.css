@@ -447,3 +447,49 @@ th { background: var(--sel); font-weight: 800; }
   .endings th, .endings td { padding: 5px 4px; }
   .conj-row { grid-template-columns: 90px 1fr auto; font-size: 17px; }
 }
+
+/* ---------- уровень темы ---------- */
+.unit-ring { position: relative; }
+.unit-lvl { position: absolute; right: -8px; bottom: -4px; background: var(--card); border: 2px solid var(--gold); color: #c98a00; border-radius: 999px; font-size: 11px; font-weight: 900; padding: 0 5px; line-height: 18px; }
+.unit-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0 4px; }
+.unit-stats div { background: var(--bg); border: 2px solid var(--line); border-radius: 12px; padding: 8px 4px; display: flex; flex-direction: column; }
+.unit-stats b { font-size: 20px; }
+.unit-stats small { color: var(--muted); font-size: 12px; }
+
+/* ---------- задания дня ---------- */
+.quests .q-head { display: flex; justify-content: space-between; margin-bottom: 6px; }
+.q-row { display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: center; padding: 6px 0; }
+.q-ic { font-size: 20px; text-align: center; }
+.q-body span { font-weight: 700; font-size: 15px; }
+.q-bar { height: 8px; background: var(--line); border-radius: 8px; overflow: hidden; margin-top: 4px; }
+.q-bar div { height: 100%; background: var(--gold); border-radius: 8px; transition: width .4s; }
+.q-row.done .q-bar div { background: var(--ok); }
+.q-row.done span { color: var(--muted); text-decoration: line-through; }
+.q-num { font-weight: 800; color: var(--muted); font-size: 14px; }
+.quests.all { border-color: var(--ok); }
+
+/* ---------- контрольная ---------- */
+.chip.test { border-color: var(--red); }
+.grade { display: flex; align-items: center; gap: 12px; justify-content: center; margin: 10px auto; }
+.grade b { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; font-size: 34px; color: #fff; background: var(--ok); animation: pop .6s; }
+.grade.g3 b { background: var(--gold); } .grade.g4 b, .grade.g5 b { background: var(--bad); }
+.grade span { font-weight: 800; }
+.link-card.mist { border-color: var(--bad); margin-top: 10px; }
+
+/* ---------- аудирование ---------- */
+.chip.listen { border-color: #8a5cff; }
+.l-toggles { display: flex; gap: 16px; flex-wrap: wrap; margin: 12px 0; }
+.l-toggles .check { display: flex; gap: 8px; align-items: center; font-weight: 700; }
+.dialog { display: flex; flex-direction: column; gap: 10px; }
+.d-line { display: flex; gap: 8px; align-items: flex-end; }
+.d-line.m { flex-direction: row-reverse; }
+.d-av { font-size: 28px; }
+.d-bubble { background: var(--card); border: 2px solid var(--line); border-radius: 16px; padding: 8px 12px; max-width: 75%; display: flex; flex-direction: column; transition: border-color .2s, transform .2s; }
+.d-line.m .d-bubble { background: var(--sel); }
+.d-bubble small { color: var(--muted); font-weight: 700; }
+.d-sk { font-weight: 700; font-size: 17px; }
+.d-tr { color: var(--muted); font-size: 14px; margin-top: 2px; }
+.d-line.now .d-bubble { border-color: var(--primary); transform: scale(1.02); }
+.hidden-text .d-sk { filter: blur(6px); user-select: none; }
+.l-q .opts { margin-top: 8px; }
+.l-q.answered .opt { cursor: default; }

@@ -31,12 +31,14 @@ if ("speechSynthesis" in window) {
 
 // есть ли чем озвучивать вообще / конкретный текст
 export function hasVoice() { return AUDIO.size > 0 || !!voice; }
-export function canSpeak(text) { return !!voice || AUDIO.has(audioHash(audioKey(text))); }
+export function canSpeak(text, who = "f") { return !!voice || AUDIO.has(audioHash(audioKey(text, who))); }
 export function onVoice(fn) { subs.add(fn); }
 
-export function speak(text, { slow = false } = {}) {
-  if (!text) return;
-  const hash = audioHash(audioKey(text));
+// who: "f" / "m" — женский или мужской голос (для диалогов)
+// Возвращает Promise, который завершается, когда фраза отзвучала.
+export function speak(text, { slow = false, who = "f" } = {}) {
+  if (!text) return Promise.resolve();
+  const hash = audioHash(audioKey(text, who));
   if (AUDIO.has(hash)) {
     try {
       player?.pause();
@@ -45,12 +47,18 @@ export function speak(text, { slow = false } = {}) {
       player.playbackRate = slow ? 0.7 : 1;
       player.preservesPitch = true;
       // нет файла (офлайн и не в кэше) — пробуем голос браузера
-      player.play().catch((e) => { if (e?.name !== "NotAllowedError") speakVoice(text, slow); });
-      return;
+      const p = player;
+      return new Promise((done) => {
+        p.onended = p.onpause = () => done();
+        p.play().catch((e) => { if (e?.name !== "NotAllowedError") speakVoice(text, slow); done(); });
+      });
     } catch (e) { /* ниже — голос браузера */ }
   }
   speakVoice(text, slow);
+  return Promise.resolve();
 }
+// остановить звук (например, при уходе с экрана)
+export function stopSpeaking() { try { player?.pause(); speechSynthesis?.cancel?.(); } catch (e) { /* */ } }
 
 function speakVoice(text, slow) {
   if (!voice) return;
