@@ -1,8 +1,9 @@
 // =====================================================================
 //  ЭКРАНЫ ПРИЛОЖЕНИЯ И НАВИГАЦИЯ (#/путь в адресе)
 // =====================================================================
-import { LESSONS, WORDS, UNIT_BY_ID, WORD_BY_ID, EXTRA_UNITS } from "./data.js";
+import { LESSONS, LEVELS, lessonLabel, WORDS, UNIT_BY_ID, WORD_BY_ID, EXTRA_UNITS } from "./data.js";
 import { DRILLS, CHEATSHEETS, PRESENT, commonPrefix, shuffle, numToSk, randomTime, clockOptions } from "./grammar.js";
+import { CASE_GENS } from "./grammar-a2.js";
 import { clockSvg, timePhrase } from "./clock.js";
 import { DIALOGS } from "./listening.js";
 import { store, ACHIEVEMENTS, levelInfo, dayKey, dayNum, exportProgress, importProgress, GOALS, localGet, localSet } from "./store.js";
@@ -57,17 +58,30 @@ function frame(active, inner) {
 // =====================================================================
 //  ГЛАВНАЯ: путь по урокам
 // =====================================================================
+// выбранный уровень (A1 / A2) и его уроки
+const curLevel = () => (LEVELS.includes(store.settings.level) ? store.settings.level : "A1");
+const levelLessons = () => LESSONS.filter((l) => l.level === curLevel());
+
 function recommendedUnit() {
-  for (const l of LESSONS) for (const u of l.units) if (!store.p.units[u.id]?.plays) return u.id;
+  const ls = levelLessons();
+  for (const l of ls) for (const u of l.units) if (!store.p.units[u.id]?.plays) return u.id;
   let best = null, min = 2;
-  for (const l of LESSONS) for (const u of l.units) { const m = store.unitMastery(u); if (m < min) { min = m; best = u.id; } }
+  for (const l of ls) for (const u of l.units) { const m = store.unitMastery(u); if (m < min) { min = m; best = u.id; } }
   return best;
+}
+// переключатель уровня
+function levelTabs() {
+  return `<div class="seg level-seg">${LEVELS.map((lv) => {
+    const ids = new Set(LESSONS.filter((l) => l.level === lv).flatMap((l) => l.units.flatMap((u) => u.list.map((w) => w.id))));
+    const c = store.counts(ids);
+    return `<button data-level="${lv}" class="${curLevel() === lv ? "active" : ""}"><b>${lv}</b> <small>${c.learned}/${c.total}</small></button>`;
+  }).join("")}</div>`;
 }
 
 function screenLearn() {
   const rec = recommendedUnit();
   const due = store.dueWords().length;
-  const html = LESSONS.map((l) => {
+  const html = levelLessons().map((l) => {
     const ids = new Set(l.units.flatMap((u) => u.list.map((w) => w.id)));
     const c = store.counts(ids);
     const drills = DRILLS.filter((d) => d.lesson === l.id);
@@ -75,7 +89,7 @@ function screenLearn() {
     return `
       <section class="lesson" id="lesson-${l.id}">
         <div class="lesson-head">
-          <div class="lesson-num">${l.id}</div>
+          <div class="lesson-num">${l.n}</div>
           <div class="lesson-title">
             <div class="sk">${esc(l.sk)}</div>
             <div class="tr">${esc(tr(l))}</div>
@@ -110,6 +124,7 @@ function screenLearn() {
   }).join("");
 
   app.innerHTML = frame("learn", `
+    ${levelTabs()}
     ${questsCard()}
     ${due ? `<a class="banner" href="#/review">🔁 ${esc(t("reviewDue"))}: <b>${due}</b> → </a>` : ""}
     ${!hasVoice() && !localGet("voiceNoteHidden") ? `<div class="note small">🔇 ${esc(t("noVoice"))} <button class="link hide-voice">✕</button></div>` : ""}
@@ -117,6 +132,7 @@ function screenLearn() {
 
   app.querySelector(".hide-voice")?.addEventListener("click", () => { localSet("voiceNoteHidden", true); render(); });
   app.querySelectorAll(".unit").forEach((b) => (b.onclick = () => unitSheet(UNIT_BY_ID[b.dataset.unit])));
+  app.querySelectorAll(".level-seg button").forEach((b) => (b.onclick = () => { store.setSetting("level", b.dataset.level); screenLearn.scrolled = false; render(); }));
   maybeRemind();
   // прокрутить к рекомендуемой теме при первом открытии
   if (!screenLearn.scrolled) {
@@ -158,7 +174,7 @@ function unitSheet(u) {
     <div class="sheet">
       <div class="sheet-ic">${u.icon}</div>
       <h2>${esc(tr(u))}</h2>
-      <div class="muted">${esc(u.sk)} · ${esc(t("lesson"))} ${u.lesson}</div>
+      <div class="muted">${esc(u.sk)} · ${esc(t("lesson"))} ${lessonLabel(LESSONS.find((l) => l.id === u.lesson))}</div>
       <div class="unit-stats">
         <div><b>${pr.seen}/${pr.total}</b><small>${esc(t("statSeen"))}</small></div>
         <div><b>${pr.solid}/${pr.total}</b><small>${esc(t("statSolid"))}</small></div>
@@ -231,7 +247,7 @@ function screenDict() {
       <input class="search" type="search" placeholder="${esc(t("search"))}" value="${esc(q)}">
       <select class="lesson-filter">
         <option value="0">${esc(t("allLessons"))}</option>
-        ${LESSONS.map((l) => `<option value="${l.id}" ${lf === String(l.id) ? "selected" : ""}>${esc(t("lesson"))} ${l.id}</option>`).join("")}
+        ${LESSONS.map((l) => `<option value="${l.id}" ${lf === String(l.id) ? "selected" : ""}>${esc(t("lesson"))} ${lessonLabel(l)}</option>`).join("")}
         <option value="x" ${lf === "x" ? "selected" : ""}>${esc(t("extraDict"))}</option>
       </select>
     </div>
@@ -246,7 +262,7 @@ function screenDict() {
     let lastUnit = null;
     list.innerHTML = items.slice(0, 400).map((w) => {
       const u = UNIT_BY_ID[w.unit];
-      const where = u.lesson ? `${t("lesson")} ${u.lesson}` : t("extraShort");
+      const where = u.lesson ? `${t("lesson")} ${lessonLabel(LESSONS.find((l) => l.id === u.lesson))}` : t("extraShort");
       const head = w.unit !== lastUnit ? `<div class="dict-unit">${u.icon} ${esc(tr(u))} <small>· ${esc(where)}</small></div>` : "";
       lastUnit = w.unit;
       return `${head}<div class="dict-row">
@@ -289,7 +305,7 @@ function screenGrammar(openLesson) {
     <h1>🧩 ${esc(t("navGrammar"))}</h1>
     ${LESSONS.map((l) => `
       <details class="gram" id="g-${l.id}" ${open === l.id ? "open" : ""}>
-        <summary><span class="lesson-num sm">${l.id}</span> ${esc(l.sk)}</summary>
+        <summary><span class="lesson-num sm">${l.n}</span> <small class="lvl-tag">${l.level}</small> ${esc(l.sk)}</summary>
         ${l.id === 3 ? `<a class="btn primary wide verbs-link" href="#/verbs">📘 ${esc(t("verbsTitle"))}</a>` : ""}
         <div class="gram-drills">${DRILLS.filter((d) => d.lesson === l.id).map((d) => {
           const r = store.p.drills[d.id];
@@ -412,6 +428,7 @@ function screenProfile() {
 
 const HELP = {
   ru: [
+    ["🎓", "A1 и A2", "Сверху на главной — переключатель уровня. A1 — первый учебник (6 уроков), A2 — второй: падежи, сравнение, даты, транспорт, здоровье, Словакия. Прогресс у уровней общий."],
     ["🏠", "Учиться", "Каждый урок учебника разбит на темы. Нажми на тему → «Начать». Одно занятие — 3–5 минут: новые слова, выбор перевода, пары, ввод с клавиатуры, задания на слух. Ошибки повторяются в конце."],
     ["⭐", "Кольцо вокруг темы", "Зелёное кольцо — насколько хорошо ты знаешь тему, золотое — тема выучена. Лучше проходить тему несколько дней подряд, чем 5 раз за вечер: так слова запоминаются надолго."],
     ["🔁", "Повторение", "Каждое слово возвращается через 1, 2, 4, 7, 15, 30 дней. Красный кружок на вкладке — сколько слов пора повторить. Хватит 5 минут в день."],
@@ -429,6 +446,7 @@ const HELP = {
     ["🐞", "Нашёл ошибку", "Если перевод или задание неправильные — нажми «⚑ Ошибка в задании?» после ответа или «Сообщить об ошибке» в профиле."],
   ],
   en: [
+    ["🎓", "A1 and A2", "Switch the level at the top of the main screen. A1 is the first book (6 lessons), A2 the second: cases, comparison, dates, transport, health, Slovakia."],
     ["🏠", "Learn", "Each textbook lesson is split into topics. Tap a topic → Start. A session takes 3–5 minutes: new words, multiple choice, pairs, typing, listening. Mistakes come back at the end."],
     ["⭐", "Topic ring", "The green ring shows how well you know a topic; gold means mastered. Practise over several days rather than many times in one evening."],
     ["🔁", "Review", "Every word comes back after 1, 2, 4, 7, 15, 30 days. The red badge shows how many words are due. 5 minutes a day is enough."],
@@ -860,7 +878,7 @@ function screenVerbs() {
 // =====================================================================
 //  БЛИЦ: 60 секунд, сколько успеешь ответить
 // =====================================================================
-const BLITZ_BY_LESSON = { 2: ["num"], 3: ["clock", "verbs"] };
+const BLITZ_BY_LESSON = { 2: ["num"], 3: ["clock", "verbs"], 8: ["cases"], 12: ["cases"] };
 function blitzQuestion(kind) {
   if (kind === "num") {
     const n = Math.random() < 0.7 ? Math.floor(Math.random() * 101) : Math.floor(Math.random() * 1001);
@@ -873,12 +891,13 @@ function blitzQuestion(kind) {
     const { h, m } = randomTime();
     return { html: `<div class="clock-wrap">${clockSvg(h, m, 170)}</div>`, options: clockOptions(h, m).map((o) => timePhrase(o.h, o.m)), answer: timePhrase(h, m), say: timePhrase(h, m) };
   }
-  const q = DRILLS.find((d) => d.id === (Math.random() < 0.5 ? "who" : "ending")).gen();
+  // падежи A2: местный, творительный, родительный, дательный, kde/kam, сравнение
+  const q = kind === "cases" ? CASE_GENS[Math.floor(Math.random() * CASE_GENS.length)]() : DRILLS.find((d) => d.id === (Math.random() < 0.5 ? "who" : "ending")).gen();
   return { html: `<div class="blitz-q sm">${esc(q.prompt)}</div><small class="muted">${esc(tr(q.hint))}</small>`, options: q.options, answer: q.answer, say: null };
 }
 
 function screenBlitz(kind) {
-  if (!["num", "clock", "verbs"].includes(kind)) return go("#/");
+  if (!["num", "clock", "verbs", "cases"].includes(kind)) return go("#/");
   const key = "blitz-" + kind;
   const best = store.p.drills[key]?.best || 0;
   app.innerHTML = `
@@ -969,7 +988,7 @@ function screenListen(id) {
   app.innerHTML = frame("learn", `
     <a class="link" href="#/">← ${esc(t("navLearn"))}</a>
     <h1>🎧 ${esc(tr(d))}</h1>
-    <p class="muted">${esc(d.sk)} · ${esc(t("lesson"))} ${d.lesson} · ${esc(t("listenHint"))}</p>
+    <p class="muted">${esc(d.sk)} · ${esc(t("lesson"))} ${lessonLabel(LESSONS.find((l) => l.id === d.lesson))} · ${esc(t("listenHint"))}</p>
     <button class="btn primary wide l-play">▶ ${esc(t("listenPlay"))}</button>
     <div class="l-toggles">
       <label class="check"><input type="checkbox" class="l-text" ${showText ? "checked" : ""}> ${esc(t("showText"))}</label>

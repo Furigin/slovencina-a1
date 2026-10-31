@@ -4,6 +4,7 @@
 // =====================================================================
 import { WORDS } from "./data.js";
 import { timePhrase, timeDigits } from "./clock.js";
+import { DRILLS_A2, CHEATSHEETS_A2 } from "./grammar-a2.js";
 
 // ---------- маленькие помощники ----------
 const rnd = (n) => Math.floor(Math.random() * n);
@@ -720,3 +721,7 @@ export const CHEATSHEETS = {
     },
   ],
 };
+
+// уроки A2 (id 7–12)
+DRILLS.push(...DRILLS_A2);
+Object.assign(CHEATSHEETS, CHEATSHEETS_A2);

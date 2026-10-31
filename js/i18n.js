@@ -1,6 +1,6 @@
 // Тексты интерфейса на двух языках. Добавить фразу: ключ + ru + en.
 const T = {
-  appName: ["Slovenčina A1", "Slovenčina A1"],
+  appName: ["Slovenčina A1·A2", "Slovenčina A1·A2"],
   navLearn: ["Учиться", "Learn"],
   navReview: ["Повторение", "Review"],
   navDict: ["Слова", "Words"],
@@ -122,7 +122,7 @@ const T = {
   mergedGuest: ["Прогресс без аккаунта перенесён в твой аккаунт", "Guest progress moved to your account"],
 
   welcomeTitle: ["Ahoj! 👋", "Ahoj! 👋"],
-  welcomeText: ["Учим словацкий по учебнику «Tri, dva, jeden» (A1): слова, фразы и грамматика всех 6 уроков.", "Learn Slovak with the 'Tri, dva, jeden' A1 textbook: words, phrases and grammar of all 6 lessons."],
+  welcomeText: ["Учим словацкий по учебникам «Tri, dva, jeden» A1 и A2: слова, фразы, грамматика и аудирование всех 12 уроков.", "Learn Slovak with the 'Tri, dva, jeden' A1 and A2 textbooks: words, phrases, grammar and listening of all 12 lessons."],
   welcomeAccount: ["Создай аккаунт, чтобы прогресс сохранялся в облаке и не потерялся.", "Create an account so your progress is saved in the cloud."],
   welcomeGuest: ["Попробовать без аккаунта", "Try without an account"],
   chooseGoal: ["Сколько заниматься в день?", "How much per day?"],
@@ -204,13 +204,14 @@ const T = {
   showText: ["Показать текст", "Show text"],
   showTr: ["Показать перевод", "Show translation"],
   questions: ["Вопросы", "Questions"],
+  blitz_cases: ["Блиц: падежи", "Blitz: cases"],
   help: ["Как пользоваться", "How to use"],
   share: ["Поделиться сайтом", "Share the site"],
   shareText: ["Бесплатный тренажёр словацкого по нашему учебнику «Tri, dva, jeden»", "Free Slovak trainer for our 'Tri, dva, jeden' textbook"],
   linkCopied: ["Ссылка скопирована", "Link copied"],
   report: ["Сообщить об ошибке", "Report a mistake"],
   reportHere: ["⚑ Ошибка в задании?", "⚑ Mistake in this task?"],
-  about: ["Неофициальный бесплатный тренажёр для студентов курса. Слова и грамматика — по учебнику «Tri, dva, jeden – slovenčina» (A1, Univerzita Komenského). Переводы сделаны вручную — если нашёл ошибку, сообщи.", "An unofficial free trainer for course students, based on the 'Tri, dva, jeden – slovenčina' textbook (A1, Comenius University). Translations are hand-made — please report mistakes."],
+  about: ["Неофициальный бесплатный тренажёр для студентов курса. Слова и грамматика — по учебникам «Tri, dva, jeden – slovenčina» A1 и A2 (Univerzita Komenského). Переводы сделаны вручную — если нашёл ошибку, сообщи.", "An unofficial free trainer for course students, based on the 'Tri, dva, jeden – slovenčina' textbook (A1, Comenius University). Translations are hand-made — please report mistakes."],
   helpBack: ["Понятно, начнём!", "Got it, let's go!"],
 };
 

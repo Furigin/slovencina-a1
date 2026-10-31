@@ -15,7 +15,7 @@
 //  прогресс по этому одному слову начнётся заново — это нормально.
 // =====================================================================
 
-export const LESSONS = [
+const LESSONS_A1 = [
   {
     id: 1,
     sk: "Ahoj. Ako sa máš?",
@@ -1144,6 +1144,13 @@ function parseLines(text, unitId) {
 }
 
 import { EXTRA } from "./extra.js";
+import { LESSONS_A2 } from "./data-a2.js";
+
+// Все уроки: A1 (id 1–6) и A2 (id 7–12). n — номер урока внутри уровня.
+export const LESSONS = [...LESSONS_A1.map((l) => ({ ...l, level: "A1", n: l.id })), ...LESSONS_A2];
+export const LEVELS = ["A1", "A2"];
+// подпись урока: «A2 · 3»
+export const lessonLabel = (l) => `${l.level} · ${l.n}`;
 
 // Все слова и предложения в удобном виде
 export const WORDS = [];

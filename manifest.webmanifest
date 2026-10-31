@@ -1,7 +1,7 @@
 {
-  "name": "Slovenčina A1 — учим словацкий",
+  "name": "Slovenčina A1·A2 — учим словацкий",
   "short_name": "Slovenčina",
-  "description": "Тренажёр словацкого по учебнику «Tri, dva, jeden» (A1)",
+  "description": "Тренажёр словацкого по учебникам «Tri, dva, jeden» A1 и A2",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

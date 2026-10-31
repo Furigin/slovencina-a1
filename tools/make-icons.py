@@ -70,10 +70,10 @@ d = ImageDraw.Draw(og)
 F = lambda n, sz: ImageFont.truetype("C:/Windows/Fonts/" + n, sz)
 d.rectangle([0, 0, 14, H], fill="#4c8dff")
 og.paste(make_icon(230), (890, 80), make_icon(230))
-d.text((80, 80), "Slovenčina A1", font=F("segoeuib.ttf", 86), fill="#ffffff")
+d.text((80, 80), "Slovenčina A1·A2", font=F("segoeuib.ttf", 86), fill="#ffffff")
 d.text((82, 192), "Бесплатный тренажёр словацкого", font=F("segoeuib.ttf", 46), fill="#4c8dff")
-d.text((82, 254), "по учебнику «Tri, dva, jeden»", font=F("segoeui.ttf", 42), fill="#c9d3e6")
-items = ["1300+ слов · 6 уроков", "Карточки, квизы, на слух", "Часы, блиц, грамматика", "Прогресс в облаке"]
+d.text((82, 254), "по учебникам «Tri, dva, jeden» A1 и A2", font=F("segoeui.ttf", 42), fill="#c9d3e6")
+items = ["1600+ слов · 12 уроков", "Карточки, квизы, на слух", "Падежи, аудирование, тесты", "Прогресс в облаке"]
 for i, t in enumerate(items):
     x = 82 + (i % 2) * 520; y = 360 + (i // 2) * 80
     d.rounded_rectangle([x, y, x + 490, y + 62], radius=16, fill="#1b2333", outline="#2c3850", width=3)

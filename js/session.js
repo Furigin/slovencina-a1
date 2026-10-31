@@ -3,7 +3,7 @@
 //  Типы заданий: intro (новое слово), mc (выбор), listen (на слух),
 //  type (ввод), match (пары), tiles (собрать предложение), q (грамматика).
 // =====================================================================
-import { WORDS, LESSONS } from "./data.js";
+import { WORDS, LESSONS, lessonLabel } from "./data.js";
 import { DRILLS, shuffle } from "./grammar.js";
 import { store } from "./store.js";
 import { t, tr, getLang } from "./i18n.js";
@@ -102,7 +102,7 @@ export function buildSentenceSession(lesson) {
       .filter((tok) => !tokens.some((y) => norm(y) === norm(tok))).slice(0, 3);
     return { type: "tiles", sent: s, tiles: shuffle([...tokens, ...extra]) };
   });
-  return { kind: "sent", id: String(lesson.id), title: `${t("sentences")} · ${t("lesson")} ${lesson.id}`, items };
+  return { kind: "sent", id: String(lesson.id), title: `${t("sentences")} · ${t("lesson")} ${lessonLabel(lesson)}`, items };
 }
 
 // Контрольная по уроку: 12 слов + 6 вопросов грамматики + 2 предложения, без повторов ошибок
@@ -115,7 +115,7 @@ export function buildTestSession(lesson) {
     items.push(q.item ? q.item : { type: "q", q });
   }
   items.push(...buildSentenceSession(lesson).items.slice(0, 2));
-  return { kind: "test", id: "test-" + lesson.id, title: `📝 ${t("testTitle")} · ${t("lesson")} ${lesson.id}`, items: shuffle(items), noRetry: true };
+  return { kind: "test", id: "test-" + lesson.id, title: `📝 ${t("testTitle")} · ${t("lesson")} ${lessonLabel(lesson)}`, items: shuffle(items), noRetry: true };
 }
 
 export function buildDrillSession(drill) {
