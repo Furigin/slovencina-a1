@@ -4,6 +4,10 @@
 import { LESSONS, LEVELS, lessonLabel, WORDS, UNIT_BY_ID, WORD_BY_ID, EXTRA_UNITS } from "./data.js";
 import { DRILLS, CHEATSHEETS, PRESENT, commonPrefix, shuffle, numToSk, randomTime, clockOptions } from "./grammar.js";
 import { CASE_GENS } from "./grammar-a2.js";
+import { initIcons } from "./icons.js";
+
+// цвет плашек тем: у каждого урока свой оттенок
+const LESSON_HUE = { 1: 228, 2: 262, 3: 198, 4: 322, 5: 160, 6: 24, 7: 190, 8: 350, 9: 212, 10: 36, 11: 280, 12: 140 };
 import { clockSvg, timePhrase } from "./clock.js";
 import { DIALOGS } from "./listening.js";
 import { store, ACHIEVEMENTS, levelInfo, dayKey, dayNum, exportProgress, importProgress, GOALS, localGet, localSet } from "./store.js";
@@ -100,7 +104,7 @@ function screenLearn() {
         <div class="units">
           ${l.units.map((u) => {
             const pr = store.unitProgress(u);
-            return `<button class="unit ${u.id === rec ? "rec" : ""} ${pr.level >= 5 ? "gold" : ""}" data-unit="${u.id}">
+            return `<button class="unit ${u.id === rec ? "rec" : ""} ${pr.level >= 5 ? "gold" : ""}" data-unit="${u.id}" style="--h:${LESSON_HUE[l.id] || 228}">
               <span class="unit-ring" style="--p:${Math.round(pr.done * 100)}"><span class="unit-ic">${u.icon}</span>${pr.seen ? `<span class="unit-lvl">${pr.level >= 5 ? "👑" : "★" + pr.level}</span>` : ""}</span>
               <span class="unit-name">${esc(tr(u))}</span>
               <span class="unit-sub">${pr.seen}/${pr.total} ${esc(t("words"))}</span>
@@ -996,7 +1000,7 @@ function screenListen(id) {
     </div>
     <div class="dialog ${showText ? "" : "hidden-text"}">
       ${d.lines.map(([who, sk, ru, enT], i) => `<div class="d-line ${who}" data-i="${i}">
-        <span class="d-av">${who === "m" ? "👨" : "👩"}</span>
+        <span class="d-av">${esc([...d.people[who]][0])}</span>
         <div class="d-bubble"><small>${esc(d.people[who])}</small><span class="d-sk">${esc(sk)}</span>${showTr ? `<span class="d-tr">${esc(en ? enT : ru)}</span>` : ""}</div>
         <button class="speak sm" data-line="${i}">🔊</button>
       </div>`).join("")}
@@ -1111,6 +1115,7 @@ async function boot() {
   app.innerHTML = `<div class="loading"><img src="icons/icon.svg" alt=""></div>`;
   // просим браузер не удалять наши данные при нехватке места
   navigator.storage?.persist?.().catch(() => {});
+  await initIcons(); // иконки вместо эмодзи — до первой отрисовки
   await initCloud();
   setLang(store.settings.lang || getLang());
   applyTheme();
