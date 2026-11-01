@@ -103,12 +103,12 @@ praktický | практичный | practical
       {
         id: "7-5", icon: "🏆", sk: "Lepší, najlepší", ru: "Лучше, лучший", en: "Better, best",
         words: `
-lepší | лучше, более хороший | better
+lepší | лучше (прил.: lepší dom) | better (adjective)
 najlepší | самый лучший | the best
 horší | хуже | worse
 najhorší | самый плохой | the worst
-väčší | больше, крупнее | bigger
-menší | меньше | smaller
+väčší | больше (размером), крупнее | bigger
+menší | меньше (размером) | smaller
 krajší | красивее | prettier
 starší | старше | older
 mladší | младше | younger
@@ -117,8 +117,8 @@ drahší | дороже | more expensive
 lacnejší | дешевле | cheaper
 zaujímavejší | интереснее | more interesting
 lepšie | лучше (наречие) | better (adverb)
-viac | больше | more
-menej | меньше | less
+viac | больше (количество) | more
+menej | меньше (количество) | less
 `,
       },
     ],
@@ -283,7 +283,7 @@ cyklotrasa | велодорожка | cycle path | f
         id: "9-2", icon: "🎫", sk: "Na stanici a na letisku", ru: "На вокзале и в аэропорту", en: "At the station & airport",
         words: `
 cestovný lístok | проездной билет | ticket | m
-miestenka | плацкарта (место) | seat reservation | f
+miestenka | бронь места (в поезде) | seat reservation | f
 jednosmerný lístok | билет в одну сторону | one-way ticket | m
 zľavnený lístok | льготный билет | reduced ticket | m
 električenka | проездной (на транспорт) | travel pass | f
@@ -310,7 +310,7 @@ oblačno | облачно | cloudy
 veterno | ветрено | windy
 mráz | мороз | frost | m
 mrznúť | замерзать | to freeze
-snežiť | идёт снег | to snow
+snežiť | идти (о снеге) | to snow
 fúkať | дуть | to blow
 svietiť | светить | to shine
 dúha | радуга | rainbow | f
@@ -388,7 +388,7 @@ téglik | стаканчик (йогурта) | pot | m
 vrecko | пакетик | bag, sachet | n
 škatuľa | коробка | box | f
 plechovka | банка (жестяная) | can | f
-konzerva | консервы | tin | f
+konzerva | консервная банка | tin | f
 tabuľka | плитка (шоколада) | bar | f
 balenie | упаковка | pack | n
 kilo | килограмм | kilo | n

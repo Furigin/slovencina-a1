@@ -205,6 +205,9 @@ const T = {
   showTr: ["Показать перевод", "Show translation"],
   questions: ["Вопросы", "Questions"],
   blitz_cases: ["Блиц: падежи", "Blitz: cases"],
+  boxesTitle: ["Как крепко ты помнишь слова", "How well you remember words"],
+  boxesHint: ["Каждый столбик — слова, которые вернутся через столько дней. Чем правее, тем прочнее ты их знаешь.", "Each bar shows words that come back after that many days. The further right, the better you know them."],
+  daysShort: ["дн.", "d"],
   help: ["Как пользоваться", "How to use"],
   share: ["Поделиться сайтом", "Share the site"],
   shareText: ["Бесплатный тренажёр словацкого по нашему учебнику «Tri, dva, jeden»", "Free Slovak trainer for our 'Tri, dva, jeden' textbook"],
@@ -223,6 +226,13 @@ export function t(key) {
   const v = T[key];
   if (!v) return key;
   return lang === "en" ? v[1] : v[0];
+}
+// число + слово с правильным окончанием: 1 слово, 3 слова, 5 слов / 1 word, 3 words
+export function nWords(n) {
+  if (lang === "en") return `${n} ${n === 1 ? "word" : "words"}`;
+  const a = Math.abs(n) % 100, b = a % 10;
+  const w = a > 10 && a < 20 ? "слов" : b === 1 ? "слово" : b >= 2 && b <= 4 ? "слова" : "слов";
+  return `${n} ${w}`;
 }
 // tr({ru, en}) → текст из объекта с двумя языками
 export function tr(obj) { return obj ? (lang === "en" ? obj.en : obj.ru) : ""; }

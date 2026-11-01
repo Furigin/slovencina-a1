@@ -273,3 +273,32 @@ tr:last-child td { border-bottom: 0; }
 /* правильный ответ — мягкая пульсация вместо «прыжка» */
 .opt.right { animation: okpulse .35s ease; }
 @keyframes okpulse { 50% { transform: scale(1.025); } }
+
+/* ---------- карточка нового слова — по центру и крупно ---------- */
+.s-body:has(.intro-card) { justify-content: center; }
+.intro-card { padding: 40px 20px; gap: 10px; }
+.intro-sk { font-size: 46px; line-height: 1.1; }
+.intro-tr { font-size: 22px; }
+.prompt { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; }
+.prompt.grammar { font-size: 26px; }
+
+/* ---------- график коробок повторения ---------- */
+.boxes-card .boxes { height: 150px; gap: 8px; margin: 0 0 8px; align-items: stretch; }
+.box { gap: 6px; }
+.box b { font-size: 15px; font-weight: 800; }
+.box-track { flex: 1; width: 100%; display: flex; align-items: flex-end; background: var(--card2); border-radius: 10px; overflow: hidden; }
+.box-bar { width: 100%; border-radius: 10px; opacity: 1; background: linear-gradient(180deg, hsl(calc(200 + var(--i, 0) * 0) 90% 62%), var(--primary)); }
+.box:nth-child(n+5) .box-bar { background: var(--grad-ok); }
+.box small { font-size: 11px; white-space: nowrap; }
+
+/* ---------- таблицы: подсказка, что можно листать ---------- */
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-wrap table { min-width: 100%; }
+table.flipped th { width: 34%; }
+@media (max-width: 480px) {
+  .table-wrap { margin: 0 -4px; }
+  th, td { padding: 6px 6px; font-size: 14px; }
+  .endings th, .endings td { padding: 5px 3px; font-size: 12.5px; }
+}
+@media (max-width: 480px) { table.many th, table.many td { padding: 5px 4px; font-size: 12.5px; } }
+@media (max-width: 480px) { .endings th, .endings td { padding: 5px 2px; font-size: 12px; } }

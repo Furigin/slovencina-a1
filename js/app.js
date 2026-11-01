@@ -12,7 +12,7 @@ import { clockSvg, timePhrase } from "./clock.js";
 import { DIALOGS } from "./listening.js";
 import { store, ACHIEVEMENTS, levelInfo, dayKey, dayNum, exportProgress, importProgress, GOALS, localGet, localSet } from "./store.js";
 import { cloud, initCloud, login, register, logout, resetPassword, authErrorKey, validNick, fetchLeaderboard, takeGuestMergedFlag } from "./cloud.js";
-import { t, tr, setLang, getLang } from "./i18n.js";
+import { t, tr, setLang, getLang, nWords } from "./i18n.js";
 import { speak, stopSpeaking, hasVoice, onVoice, sfx, vibrate } from "./speech.js";
 import { esc, trW, runSession, buildUnitSession, buildReviewSession, buildSentenceSession, buildDrillSession, buildTestSession, genderLabel } from "./session.js";
 
@@ -104,10 +104,10 @@ function screenLearn() {
         <div class="units">
           ${l.units.map((u) => {
             const pr = store.unitProgress(u);
-            return `<button class="unit ${u.id === rec ? "rec" : ""} ${pr.level >= 5 ? "gold" : ""}" data-unit="${u.id}" style="--h:${LESSON_HUE[l.id] || 228}">
+            return `<button class="unit ${u.id === rec ? "rec" : ""} ${pr.level >= 5 ? "gold" : ""}" data-unit="${u.id}" style="--h:${(LESSON_HUE[l.id] || 228) + (l.units.indexOf(u) * 17) % 70}">
               <span class="unit-ring" style="--p:${Math.round(pr.done * 100)}"><span class="unit-ic">${u.icon}</span>${pr.seen ? `<span class="unit-lvl">${pr.level >= 5 ? "👑" : "★" + pr.level}</span>` : ""}</span>
               <span class="unit-name">${esc(tr(u))}</span>
-              <span class="unit-sub">${pr.seen}/${pr.total} ${esc(t("words"))}</span>
+              <span class="unit-sub">${pr.seen}/${esc(nWords(pr.total))}</span>
               ${u.id === rec ? `<span class="rec-tag">${esc(t("recommended"))}</span>` : ""}
             </button>`;
           }).join("")}
@@ -217,13 +217,18 @@ function screenReview() {
       </div>
       <div class="row2">
         <a class="card link-card" href="#/s/review/weak">💪 ${esc(t("reviewWeak"))}<small>${weak.slice(0, 4).map((w) => esc(w.sk)).join(", ")}</small></a>
-        <a class="card link-card" href="#/s/review/all">📦 ${esc(t("reviewAll"))}<small>${learned} ${esc(t("words"))}</small></a>
+        <a class="card link-card" href="#/s/review/all">📦 ${esc(t("reviewAll"))}<small>${esc(nWords(learned))}</small></a>
       </div>
       ${store.mistakeWords().length ? `<a class="card link-card mist" href="#/s/review/mist">❌ ${esc(t("mistakes"))} (${store.mistakeWords().length})<small>${store.mistakeWords().slice(0, 6).map((w) => esc(w.sk)).join(", ")}</small></a>` : ""}
-      <div class="boxes">${[1, 2, 3, 4, 5, 6, 7].map((b) => {
-        const n = WORDS.filter((w) => store.word(w.id)?.b === b).length;
-        return `<div class="box"><div class="box-bar" style="height:${Math.min(100, n * 2)}%"></div><b>${n}</b><small>${b}</small></div>`;
-      }).join("")}</div>`}
+      <h2>${esc(t("boxesTitle"))}</h2>
+      <div class="card boxes-card">
+        <div class="boxes">${(() => {
+          const counts = [1, 2, 3, 4, 5, 6, 7].map((b) => WORDS.filter((w) => store.word(w.id)?.b === b).length);
+          const max = Math.max(1, ...counts);
+          return counts.map((n, i) => `<div class="box"><b>${n}</b><div class="box-track"><div class="box-bar" style="height:${Math.max(4, (n / max) * 100)}%"></div></div><small>${[1, 2, 4, 7, 15, 30, 60][i]} ${esc(t("daysShort"))}</small></div>`).join("");
+        })()}</div>
+        <p class="muted small">${esc(t("boxesHint"))}</p>
+      </div>`}
   `);
 }
 
@@ -239,7 +244,7 @@ function screenDict() {
   app.innerHTML = frame("dict", `
     <h1>📚 ${esc(t("navDict"))}</h1>
     <div class="card vocab-hero">
-      <div class="vh-top"><span class="vh-ic">🎲</span><div><b>${esc(t("vocabTitle"))}</b><small>${extra.length} ${esc(t("words"))} · ${esc(t("learned"))} ${extraLearned}</small></div></div>
+      <div class="vh-top"><span class="vh-ic">🎲</span><div><b>${esc(t("vocabTitle"))}</b><small>${esc(nWords(extra.length))} · ${esc(t("learned"))} ${extraLearned}</small></div></div>
       <p class="muted small">${esc(t("vocabSub"))}</p>
       <div class="vh-cats">
         <button class="chip ${cat === "all" ? "active" : ""}" data-cat="all">✨ ${esc(t("allCats"))}</button>
@@ -319,7 +324,7 @@ function screenGrammar(openLesson) {
           <div class="cs">
             <h3>${esc(tr(s.t))}</h3>
             ${s.note ? `<p class="muted">${esc(tr(s.note))}</p>` : ""}
-            <div class="table-wrap"><table>${s.rows.map((r, i) => `<tr>${r.map((c) => (i === 0 ? `<th>${esc(c)}</th>` : `<td>${esc(c)}</td>`)).join("")}</tr>`).join("")}</table></div>
+            <div class="table-wrap">${tableHtml(s.rows)}</div>
           </div>`).join("")}
       </details>`).join("")}`);
   if (open) setTimeout(() => document.getElementById("g-" + open)?.scrollIntoView({ block: "start" }), 30);
@@ -490,6 +495,15 @@ async function shareSite() {
     await navigator.clipboard.writeText(url);
     toast(t("linkCopied"));
   } catch (e) { /* пользователь закрыл окно */ }
+}
+
+// Таблица шпаргалки. Короткая, но широкая таблица (2–3 строки, много столбцов)
+// на телефоне не помещается — показываем её «перевёрнутой»: строки становятся столбцами.
+function tableHtml(rows) {
+  const cols = Math.max(...rows.map((r) => r.length));
+  const flip = rows.length <= 3 && cols > 4;
+  const grid = flip ? Array.from({ length: cols }, (_, c) => rows.map((r) => r[c] ?? "")) : rows;
+  return `<table class="${flip ? "flipped" : ""} ${!flip && cols >= 6 ? "many" : ""}">${grid.filter((r) => r.some((c) => c !== "")).map((r, i) => `<tr>${r.map((c, j) => ((flip ? j === 0 : i === 0) ? `<th>${esc(c)}</th>` : `<td>${esc(c)}</td>`)).join("")}</tr>`).join("")}</table>`;
 }
 
 function accountBlock() {
@@ -838,7 +852,7 @@ const VERB_STEPS = {
     ["6", "Special verbs", "byť, mať, jesť, ísť, vedieť — just memorise them, they're very common."],
   ],
 };
-const PERSON_ROWS = [["ja", "-m", "я"], ["ty", "-š", "ты"], ["on, ona, ono", "—", "он, она"], ["my", "-me", "мы"], ["vy", "-te", "вы"], ["oni, ony", "-jú / -ia / -ú", "они"]];
+const PERSON_ROWS = [["ja", "-m", "я"], ["ty", "-š", "ты"], ["on/ona", "—", "он, она"], ["my", "-me", "мы"], ["vy", "-te", "вы"], ["oni", "-jú/-ia/-ú", "они"]];
 
 function screenVerbs() {
   const steps = VERB_STEPS[getLang() === "en" ? "en" : "ru"];

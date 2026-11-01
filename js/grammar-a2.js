@@ -23,7 +23,16 @@ const COMP = [
 const COMP_ADV = [["dobre", "lepšie"], ["zle", "horšie"], ["veľa", "viac"], ["málo", "menej"], ["rýchlo", "rýchlejšie"], ["pomaly", "pomalšie"], ["skoro", "skôr"], ["neskoro", "neskôr"]];
 // lepší → [lepší, lepšia, lepšie]
 const compForms = (c) => [c, c.slice(0, -1) + "ia", c.slice(0, -1) + "ie"];
-const SUBJ = [["Tento dom", "ako tamten", 0], ["Táto kniha", "ako tamtá", 1], ["Toto auto", "ako tamto", 2], ["Môj brat", "ako ja", 0], ["Moja sestra", "ako ja", 1], ["Toto mesto", "ako Žilina", 2]];
+// [подлежащее, «чем», род, подходящие прилагательные] — чтобы не было «dom je hlbší»
+const SUBJ = [
+  ["Tento dom", "ako tamten", 0, ["veľký", "malý", "pekný", "starý", "nový", "drahý", "lacný", "vysoký", "nízky", "moderný", "teplý", "studený", "tichý", "svetlý", "tmavý"]],
+  ["Táto kniha", "ako tamtá", 1, ["dobrý", "zlý", "zaujímavý", "dlhý", "krátky", "ťažký", "ľahký", "drahý", "lacný", "nový", "starý"]],
+  ["Toto auto", "ako tamto", 2, ["rýchly", "pomalý", "drahý", "lacný", "nový", "starý", "veľký", "malý", "pekný", "moderný", "tichý", "čistý"]],
+  ["Toto mesto", "ako Žilina", 2, ["veľký", "malý", "pekný", "starý", "čistý", "moderný", "zaujímavý", "tichý", "drahý"]],
+  ["Táto polievka", "ako tamtá", 1, ["dobrý", "chutný", "teplý", "studený", "drahý", "lacný"]],
+  ["Môj brat", "ako ja", 0, ["starý", "mladý", "vysoký", "nízky", "múdry", "bohatý", "zdravý", "rýchly", "pomalý"]],
+  ["Moja sestra", "ako ja", 1, ["starý", "mladý", "vysoký", "nízky", "múdry", "bohatý", "zdravý", "rýchly", "pomalý"]],
+];
 
 // ---------- местный падеж: [именит., предлог, местный] ----------
 const LOK = [
@@ -111,8 +120,8 @@ const GEN = {
       const [a, c] = pick(COMP_ADV);
       return { prompt: `${a} → ?`, hint: L("сравнительная степень наречия", "comparative adverb"), answer: c, typed: true, options: opts(c, COMP_ADV.map((x) => x[1])), explain: same(`${a} → ${c}`) };
     }
-    const [a, c] = pick(COMP);
-    const [s, cmp, g] = pick(SUBJ);
+    const [s, cmp, g, adjs] = pick(SUBJ);
+    const [a, c] = pick(COMP.filter(([x]) => adjs.includes(x)));
     const answer = compForms(c)[g];
     return {
       prompt: `${s} je ___ ${cmp}.`, hint: L(`(${a}) — сравнительная степень`, `(${a}) — comparative`),
@@ -121,8 +130,16 @@ const GEN = {
     };
   },
   sup() {
-    const [a, c] = pick(COMP);
-    const [noun, g] = pick([["mesto", 2], ["reštaurácia", 1], ["film", 0], ["kniha", 1], ["auto", 2], ["dom", 0]]);
+    // существительное + подходящие к нему прилагательные
+    const [noun, g, adjs] = pick([
+      ["mesto", 2, ["veľký", "malý", "pekný", "starý", "čistý", "moderný", "zaujímavý"]],
+      ["reštaurácia", 1, ["dobrý", "drahý", "lacný", "pekný", "moderný"]],
+      ["film", 0, ["dobrý", "zlý", "dlhý", "krátky", "zaujímavý", "nový"]],
+      ["kniha", 1, ["dobrý", "hrubý", "tenký", "zaujímavý", "drahý", "starý"].filter((x) => COMP.some((c) => c[0] === x))],
+      ["auto", 2, ["rýchly", "drahý", "lacný", "nový", "veľký", "malý"]],
+      ["dom", 0, ["vysoký", "starý", "nový", "veľký", "pekný", "drahý"]],
+    ]);
+    const [a, c] = pick(COMP.filter(([x]) => adjs.includes(x)));
     const answer = "naj" + compForms(c)[g];
     return {
       prompt: `To je ___ ${noun}.`, hint: L(`(${a}) — превосходная степень`, `(${a}) — superlative`),
@@ -151,12 +168,18 @@ const GEN = {
       return { prompt: `${fr} ${s} ___ .`, hint: L(`(${nom}) — с кем? с чем?`, `(${nom}) — with whom/what?`), answer: ins, typed: Math.random() < 0.4, options: opts(ins, INS_WITH.map((x) => x[1]).concat([nom, nom + "ou"])), explain: L(`${s} ${ins}`, `${s} ${ins}`) };
     }
     const [p, ins, s] = pick(INS_PRON);
-    return { prompt: `Pôjdeš ${s} ___ ?`, hint: L(`(${p})`, `(${p})`), answer: ins, options: opts(ins, INS_PRON.map((x) => x[1])), explain: L("so mnou, s tebou, s ním, s ňou, s nami, s vami, s nimi", "so mnou, s tebou, s ním, s ňou, s nami, s vami, s nimi") };
+    return { prompt: `Mama pôjde do kina ${s} ___ .`, hint: L(`(${p})`, `(${p})`), answer: ins, options: opts(ins, INS_PRON.map((x) => x[1])), explain: L("so mnou, s tebou, s ním, s ňou, s nami, s vami, s nimi", "so mnou, s tebou, s ním, s ňou, s nami, s vami, s nimi") };
   },
   gen() {
     const r = rnd(3);
     let nom, gen, frame;
-    if (r === 0) { [nom, gen] = pick(GEN_PLACE); frame = pick(["Idem do ___ .", "Bývam vedľa ___ .", "Idem okolo ___ ."]); }
+    if (r === 0) {
+      [nom, gen] = pick(GEN_PLACE);
+      // города — только «do»; univerzita, stanica, námestie — «na» (do не подходит), поэтому «vedľa / okolo»
+      const city = ["Bratislava", "Slovensko", "Žilina", "mesto", "práca"].includes(nom);
+      const naPlace = ["univerzita", "stanica", "námestie"].includes(nom);
+      frame = city ? "Idem do ___ ." : naPlace ? pick(["Bývam vedľa ___ .", "Idem okolo ___ ."]) : pick(["Idem do ___ .", "Bývam vedľa ___ .", "Idem okolo ___ ."]);
+    }
     else if (r === 1) { [nom, gen] = pick(GEN_PERSON); frame = pick(["Som u ___ .", "To je darček od ___ ."]); }
     else { [nom, gen] = pick(GEN_FOOD); frame = "Prosím si to bez ___ ."; }
     return {
@@ -178,7 +201,7 @@ const GEN = {
   dat() {
     if (Math.random() < 0.3) {
       const [p, d] = pick(DAT_PRON);
-      return { prompt: "Dám ___ darček.", hint: L(`(${p}) — кому?`, `(${p}) — to whom?`), answer: d, options: opts(d, DAT_PRON.map((x) => x[1]).concat(["ma", "ho", "ju"])), explain: L("mi, ti, mu, jej, nám, vám, im", "mi, ti, mu, jej, nám, vám, im") };
+      return { prompt: "Mama ___ dá darček.", hint: L(`(${p}) — кому?`, `(${p}) — to whom?`), answer: d, options: opts(d, DAT_PRON.map((x) => x[1]).concat(["ma", "ho", "ju"])), explain: L("mi, ti, mu, jej, nám, vám, im", "mi, ti, mu, jej, nám, vám, im") };
     }
     const [nom, dat] = pick(DAT);
     const frame = pick(["Dám darček ___ .", "Telefonujem ___ .", "Pomáham ___ .", "Idem k ___ ."]);
@@ -190,7 +213,8 @@ const GEN = {
   },
   datPron() {
     const [p, d] = pick(DAT_PRON);
-    const frame = pick(["Dám ___ knihu.", "Pomôžem ___ zajtra.", "Kúpim ___ kávu."]);
+    // подлежащее — третье лицо: «Peter mi pomôže», а не «Pomôžem mi» (себе = si)
+    const frame = pick(["Mama ___ dá knihu.", "Peter ___ zajtra pomôže.", "Babka ___ kúpi kávu."]);
     return { prompt: frame, hint: L(`(${p}) — кому?`, `(${p}) — to whom?`), answer: d, options: opts(d, DAT_PRON.map((x) => x[1]).concat(["ma", "ho", "ju", "ťa"])), explain: L("mi, ti, mu, jej, nám, vám, im — короткие формы стоят на 2-м месте", "mi, ti, mu, jej, nám, vám, im — short forms in 2nd position") };
   },
   possAdj() {
@@ -315,9 +339,13 @@ export const CHEATSHEETS_A2 = {
       rows: [["", "M", "F", "N"], ["otec", "otcov dom", "otcova kniha", "otcovo auto"], ["mama", "mamin dom", "mamina kniha", "mamino auto"], ["sestra", "sestrin", "sestrina", "sestrino"]],
     },
     {
-      t: L("Даты", "Dates"),
-      note: L("Koľkého je dnes? — Dnes je prvého mája. Kedy? — Prvého mája.", "Koľkého je dnes? — Dnes je prvého mája."),
-      rows: [["1.", "2.", "3.", "4.", "5.", "10.", "20.", "21."], ["prvého", "druhého", "tretieho", "štvrtého", "piateho", "desiateho", "dvadsiateho", "dvadsiateho prvého"], ["januára", "februára", "marca", "apríla", "mája", "júna", "júla", "augusta"], ["septembra", "októbra", "novembra", "decembra", "", "", "", ""]],
+      t: L("Даты: число", "Dates: the day"),
+      note: L("Koľkého je dnes? — Dnes je prvého mája. Kedy? — Prvého mája. День — порядковое число в родительном падеже.", "Koľkého je dnes? — Dnes je prvého mája. The day is an ordinal in the genitive."),
+      rows: [["", "как сказать"], ["1.", "prvého"], ["2.", "druhého"], ["3.", "tretieho"], ["4.", "štvrtého"], ["5.", "piateho"], ["10.", "desiateho"], ["20.", "dvadsiateho"], ["21.", "dvadsiateho prvého"], ["30.", "tridsiateho"]],
+    },
+    {
+      t: L("Даты: месяц", "Dates: the month"),
+      rows: [["месяц", "в дате"], ["január", "januára"], ["február", "februára"], ["marec", "marca"], ["apríl", "apríla"], ["máj", "mája"], ["jún", "júna"], ["júl", "júla"], ["august", "augusta"], ["september", "septembra"], ["október", "októbra"], ["november", "novembra"], ["december", "decembra"]],
     },
   ],
   12: [
