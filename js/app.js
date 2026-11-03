@@ -11,7 +11,8 @@ const LESSON_HUE = { 1: 228, 2: 262, 3: 198, 4: 322, 5: 160, 6: 24, 7: 190, 8: 3
 import { clockSvg, timePhrase } from "./clock.js";
 import { DIALOGS } from "./listening.js";
 import { store, ACHIEVEMENTS, levelInfo, dayKey, dayNum, exportProgress, importProgress, GOALS, localGet, localSet } from "./store.js";
-import { cloud, initCloud, login, register, logout, resetPassword, authErrorKey, validNick, fetchLeaderboard, takeGuestMergedFlag } from "./cloud.js";
+import { cloud, initCloud, login, register, logout, resetPassword, authErrorKey, validNick, takeGuestMergedFlag, sendFeedback } from "./cloud.js";
+import { medalSvg, nickClass, getLeaderboard, myStanding, daysLeftInWeek } from "./rank.js";
 import { t, tr, setLang, getLang, nWords } from "./i18n.js";
 import { speak, stopSpeaking, hasVoice, onVoice, sfx, vibrate } from "./speech.js";
 import { esc, trW, runSession, buildUnitSession, buildReviewSession, buildSentenceSession, buildDrillSession, buildTestSession, genderLabel } from "./session.js";
@@ -129,6 +130,7 @@ function screenLearn() {
 
   app.innerHTML = frame("learn", `
     ${levelTabs()}
+    <div class="standing-slot"></div>
     ${questsCard()}
     ${due ? `<a class="banner" href="#/review">🔁 ${esc(t("reviewDue"))}: <b>${due}</b> → </a>` : ""}
     ${!hasVoice() && !localGet("voiceNoteHidden") ? `<div class="note small">🔇 ${esc(t("noVoice"))} <button class="link hide-voice">✕</button></div>` : ""}
@@ -138,12 +140,106 @@ function screenLearn() {
   app.querySelectorAll(".unit").forEach((b) => (b.onclick = () => unitSheet(UNIT_BY_ID[b.dataset.unit])));
   app.querySelectorAll(".level-seg button").forEach((b) => (b.onclick = () => { store.setSetting("level", b.dataset.level); screenLearn.scrolled = false; render(); }));
   maybeRemind();
+  renderStanding();
+  maybeAskRating();
   // прокрутить к рекомендуемой теме при первом открытии
   if (!screenLearn.scrolled) {
     screenLearn.scrolled = true;
     const el = app.querySelector(".unit.rec");
     if (el && el.getBoundingClientRect().top > innerHeight * 0.7) el.scrollIntoView({ block: "center" });
   }
+}
+
+// =====================================================================
+//  РЕЙТИНГ НА ГЛАВНОЙ: «ты №1 — удержи корону» / «до №N осталось…»
+// =====================================================================
+async function renderStanding() {
+  if (!cloud.user) return;
+  let st;
+  try { st = await myStanding(); } catch (e) { return; }
+  const slot = app.querySelector(".standing-slot");
+  if (!st || !slot) return;
+  const { week, pos, leader } = st;
+  const days = daysLeftInWeek();
+  let cls = "", head = "", body = "";
+  if (pos === 1) {
+    const second = week[1];
+    const gap = second ? week[0].weekXp - second.weekXp : null;
+    cls = "champ";
+    head = t("standChampHead");
+    body = second ? t(gap < 30 ? "standChampClose" : "standChampLead").replace("{nick}", esc(second.nick)).replace("{xp}", gap) : t("standChampAlone");
+  } else if (pos) {
+    const ahead = week[pos - 2];
+    head = t("standPosHead").replace("{n}", pos);
+    body = t("standPosBody").replace("{n}", pos - 1).replace("{nick}", esc(ahead.nick)).replace("{xp}", ahead.weekXp - week[pos - 1].weekXp + 1);
+  } else {
+    head = t("standNoneHead");
+    body = leader ? t("standNoneBody").replace("{nick}", esc(leader.nick)).replace("{xp}", leader.weekXp) : t("standEmpty");
+  }
+  slot.innerHTML = `<a class="card standing ${cls}" href="#/profile">
+    <span class="st-medal">${pos ? medalSvg(pos) : '<svg class="i"><use href="#i-trophy"></use></svg>'}</span>
+    <span class="st-text"><b>${head}</b><small>${body}</small></span>
+    <span class="st-days">${esc(t("weekEnds").replace("{n}", days))}</span>
+  </a>`;
+  if (st.dethroned) {
+    toast(t("dethroned").replace("{nick}", st.dethroned.nick));
+    if (store.settings.sound) sfx("bad");
+  }
+}
+
+// =====================================================================
+//  ОТЗЫВ О САЙТЕ: звёзды + комментарий + контакт (по желанию)
+// =====================================================================
+function maybeAskRating() {
+  if (!cloud.user || store.p.ratedAt || document.querySelector(".sheet-wrap")) return;
+  const plays = Object.values(store.p.units).reduce((s, u) => s + (u.plays || 0), 0) + Object.values(store.p.drills).reduce((s, d) => s + (d.plays || 0), 0);
+  if (plays < 6) return;                                            // ещё мало занимался
+  if (Date.now() - localGet("rateAsked", 0) < 3 * 86400000) return; // спрашивали недавно
+  localSet("rateAsked", Date.now());
+  setTimeout(() => { if (!document.querySelector(".sheet-wrap") && location.hash.replace(/^#\/?/, "") === "") rateSheet(); }, 1200);
+}
+
+function rateSheet() {
+  if (!cloud.user) { toast(t("rateLogin")); return go("#/login"); }
+  let stars = 0;
+  const sheet = document.createElement("div");
+  sheet.className = "sheet-wrap";
+  sheet.innerHTML = `
+    <div class="sheet rate">
+      <div class="sheet-ic">⭐</div>
+      <h2>${esc(t("rateTitle"))}</h2>
+      <p class="muted">${esc(t("rateText"))}</p>
+      <div class="stars">${[1, 2, 3, 4, 5].map((n) => `<button class="star" data-n="${n}" aria-label="${n}"><svg class="i"><use href="#i-star"></use></svg></button>`).join("")}</div>
+      <textarea class="rate-text" maxlength="1000" placeholder="${esc(t("ratePh"))}"></textarea>
+      <input class="rate-contact" maxlength="100" placeholder="${esc(t("rateContact"))}">
+      <button class="btn primary wide rate-send" disabled>${esc(t("rateSend"))}</button>
+      <button class="btn ghost wide rate-later">${esc(t("remindLater"))}</button>
+    </div>`;
+  document.body.appendChild(sheet);
+  const send = sheet.querySelector(".rate-send");
+  sheet.querySelectorAll(".star").forEach((b) => (b.onclick = () => {
+    stars = +b.dataset.n;
+    sheet.querySelectorAll(".star").forEach((x) => x.classList.toggle("on", +x.dataset.n <= stars));
+    send.disabled = false;
+    if (store.settings.sound) sfx("tap");
+  }));
+  sheet.querySelector(".rate-later").onclick = () => sheet.remove();
+  sheet.onclick = (e) => { if (e.target === sheet) sheet.remove(); };
+  send.onclick = async () => {
+    send.disabled = true; send.textContent = "…";
+    try {
+      await sendFeedback({ stars, text: sheet.querySelector(".rate-text").value.trim(), contact: sheet.querySelector(".rate-contact").value.trim() });
+      store.p.ratedAt = Date.now();
+      store.save();
+      sheet.remove();
+      toast(t("rateThanks"));
+      if (store.settings.sound) sfx("finish");
+      if (stars >= 4) confetti();
+    } catch (e) {
+      send.disabled = false; send.textContent = t("rateSend");
+      toast(t("syncError"));
+    }
+  };
 }
 
 // карточка «Задания на сегодня»
@@ -398,6 +494,7 @@ function screenProfile() {
     <div class="card">
       <a class="btn wide" href="#/help">📖 ${esc(t("help"))}</a>
       <button class="btn wide do-share">📤 ${esc(t("share"))}</button>
+      <button class="btn wide do-rate">⭐ ${esc(t("rateBtn"))}</button>
       <a class="btn ghost wide" href="${reportUrl()}" target="_blank" rel="noopener">🐞 ${esc(t("report"))}</a>
       <p class="muted small">${esc(t("about"))}</p>
     </div>
@@ -412,6 +509,7 @@ function screenProfile() {
   app.querySelector(".set-notify").onchange = (e) => enableNotifications(e.target.checked);
   app.querySelector(".do-export").onclick = exportProgress;
   app.querySelector(".do-share").onclick = shareSite;
+  app.querySelector(".do-rate").onclick = () => rateSheet();
   app.querySelector(".do-import").onchange = async (e) => {
     const f = e.target.files[0];
     if (!f) return;
@@ -426,9 +524,9 @@ function screenProfile() {
       if (!el || !rows) return;
       const list = [...rows].sort((a, b) => (mode === "week" ? b.weekXp - a.weekXp : b.xp - a.xp)).filter((r) => (mode === "week" ? r.weekXp > 0 : r.xp > 0)).slice(0, 50);
       el.classList.remove("muted");
-      el.innerHTML = list.map((r, i) => `<div class="lb-row ${r.uid === cloud.user.uid ? "me" : ""}"><span class="lb-pos">${["🥇", "🥈", "🥉"][i] || i + 1}</span><span class="lb-nick">${esc(r.nick)}</span><span class="lb-streak">🔥${r.streak}</span><b>${mode === "week" ? r.weekXp : r.xp} XP</b></div>`).join("") || "—";
+      el.innerHTML = list.map((r, i) => `<div class="lb-row ${r.uid === cloud.user.uid ? "me" : ""} ${i < 5 ? "top r" + (i + 1) : ""}"><span class="lb-pos">${medalSvg(i + 1)}</span><span class="lb-nick ${nickClass(i + 1)}">${i === 0 ? '<svg class="i crown"><use href="#i-crown"></use></svg>' : ""}${esc(r.nick)}${i === 0 ? `<small class="lb-title">${esc(mode === "week" ? t("champWeek") : t("champAll"))}</small>` : ""}</span><span class="lb-streak">🔥${r.streak}</span><b>${mode === "week" ? r.weekXp : r.xp} XP</b></div>`).join("") || "—";
     };
-    fetchLeaderboard().then((r) => { rows = r; draw(); }).catch(() => { const el = app.querySelector(".lb-list"); if (el) el.textContent = t("syncError"); });
+    getLeaderboard(true).then((r) => { rows = r; draw(); }).catch(() => { const el = app.querySelector(".lb-list"); if (el) el.textContent = t("syncError"); });
     app.querySelector(".lb-week").onclick = (e) => { mode = "week"; e.target.classList.add("active"); app.querySelector(".lb-all").classList.remove("active"); draw(); };
     app.querySelector(".lb-all").onclick = (e) => { mode = "all"; e.target.classList.add("active"); app.querySelector(".lb-week").classList.remove("active"); draw(); };
   }

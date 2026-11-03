@@ -192,6 +192,21 @@ export async function fetchLeaderboard() {
   });
 }
 
+// Отзыв о сайте → коллекция feedback (читает только админ в консоли Firebase)
+export async function sendFeedback({ stars, text, contact }) {
+  if (!fb || !cloud.user) throw new Error("not logged in");
+  await fb.addDoc(fb.collection(fb.db, "feedback"), {
+    uid: cloud.user.uid,
+    nick: cloud.user.nick.slice(0, 40),
+    stars,
+    text: text.slice(0, 1000),
+    contact: contact.slice(0, 100),
+    xp: store.xp,
+    lang: store.settings.lang || "ru",
+    createdAt: Date.now(),
+  });
+}
+
 function parse(json) {
   try { return JSON.parse(json); } catch (e) { return null; }
 }

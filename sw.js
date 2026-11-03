@@ -1,10 +1,10 @@
 // Офлайн-режим: сначала сеть, если её нет — кэш.
 // При изменениях сайта поменяй версию, чтобы старый кэш удалился.
-const CACHE = "slovencina-v9";
+const CACHE = "slovencina-v10";
 const FILES = [
   "./", "index.html", "css/style.css", "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png",
   "js/app.js", "js/data.js", "js/grammar.js", "js/store.js", "js/cloud.js", "js/session.js",
-  "js/i18n.js", "js/speech.js", "js/firebase-config.js", "js/extra.js", "js/clock.js", "js/audio-index.js", "js/audio-key.js", "js/listening.js", "js/data-a2.js", "js/grammar-a2.js", "js/icons.js", "css/premium.css", "icons/sprite.svg", "icons/icon-512.png",
+  "js/i18n.js", "js/speech.js", "js/firebase-config.js", "js/extra.js", "js/clock.js", "js/audio-index.js", "js/audio-key.js", "js/listening.js", "js/data-a2.js", "js/grammar-a2.js", "js/icons.js", "js/rank.js", "css/premium.css", "icons/sprite.svg", "icons/icon-512.png",
 ];
 
 self.addEventListener("install", (e) => {

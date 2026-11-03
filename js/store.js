@@ -83,6 +83,7 @@ export function merge(a, b) {
   out.created = Math.min(a.created || Date.now(), b.created || Date.now());
   out.updated = Math.max(a.updated || 0, b.updated || 0);
   out.lastCheck = Math.max(a.lastCheck || 0, b.lastCheck || 0);
+  out.ratedAt = Math.max(a.ratedAt || 0, b.ratedAt || 0); // когда оставил отзыв о сайте
   out.frozen = { ...(a.frozen || {}), ...(b.frozen || {}) };
   out.freezes = newer.freezes || 0;
   out.mist = { ...(newer.mist || {}) };

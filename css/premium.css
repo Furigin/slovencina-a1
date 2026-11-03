@@ -302,3 +302,42 @@ table.flipped th { width: 34%; }
 }
 @media (max-width: 480px) { table.many th, table.many td { padding: 5px 4px; font-size: 12.5px; } }
 @media (max-width: 480px) { .endings th, .endings td { padding: 5px 2px; font-size: 12px; } }
+
+/* ---------- рейтинг: медали и ники по местам ---------- */
+.medal { width: 30px; height: 35px; filter: drop-shadow(0 3px 6px rgba(0, 0, 0, .25)); }
+.medal.m1 { width: 34px; height: 40px; filter: drop-shadow(0 0 10px rgba(245, 176, 20, .55)); animation: medalGlow 2.4s ease-in-out infinite; }
+@keyframes medalGlow { 50% { filter: drop-shadow(0 0 16px rgba(245, 176, 20, .85)); } }
+.lb-num { font-weight: 800; color: var(--muted); }
+.lb-row { grid-template-columns: 40px 1fr auto auto; padding: 9px 6px; }
+.lb-row.top { border-bottom-color: transparent; }
+.lb-row.r1 { background: linear-gradient(90deg, rgba(245, 176, 20, .14), transparent 80%); border-radius: 14px; }
+.lb-nick { display: block; font-weight: 800; overflow-wrap: anywhere; min-width: 0; }
+.lb-title { display: block; font-size: 11px; font-weight: 700; color: #d99a0b; letter-spacing: .02em; -webkit-text-fill-color: #d99a0b; }
+.crown { width: 16px; height: 16px; color: #f5b014; margin-right: 4px; vertical-align: -2px; -webkit-text-fill-color: initial; }
+.nick-r1, .nick-r2, .nick-r3, .nick-r4, .nick-r5 { background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.nick-r1 { background-image: linear-gradient(90deg, #f59e0b, #ffe58a, #f5b014, #fff3b0, #f59e0b); background-size: 300% 100%; animation: shine 4s linear infinite; font-size: 1.05em; }
+.nick-r1 .crown, .nick-r1 .lb-title { -webkit-text-fill-color: initial; }
+.nick-r2 { background-image: linear-gradient(90deg, #8e99ab, #e6ebf3, #a6b0c2); }
+.nick-r3 { background-image: linear-gradient(90deg, #b8692f, #f0b27a, #c97b40); }
+.nick-r4 { background-image: linear-gradient(90deg, #8b5cf6, #d0a8ff); }
+.nick-r5 { background-image: linear-gradient(90deg, #3d7cff, #8fb6ff); }
+@keyframes shine { to { background-position: 300% 0; } }
+
+/* ---------- карточка «Твоё место» на главной ---------- */
+.standing { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; color: var(--text); padding: 14px 16px; }
+.standing .st-medal { display: grid; place-items: center; width: 42px; }
+.standing .st-medal > .i { width: 30px; height: 30px; color: var(--gold); }
+.standing .st-text { display: flex; flex-direction: column; }
+.standing .st-text small { color: var(--muted); margin-top: 2px; }
+.standing .st-days { font-size: 12px; font-weight: 700; color: var(--muted); background: var(--card2); border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; white-space: nowrap; }
+.standing.champ { border-color: rgba(245, 176, 20, .55); background: linear-gradient(120deg, rgba(245, 176, 20, .18), var(--card) 70%); box-shadow: 0 12px 30px -14px rgba(245, 176, 20, .55); }
+.standing.champ b { background: linear-gradient(90deg, #f59e0b, #ffd767, #f59e0b); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; animation: shine 3s linear infinite; }
+
+/* ---------- окно отзыва ---------- */
+.stars { display: flex; justify-content: center; gap: 8px; margin: 12px 0; }
+.star { border: 0; background: none; cursor: pointer; padding: 4px; color: var(--muted); transition: transform .12s; }
+.star .i { width: 38px; height: 38px; stroke-width: 1.6; }
+.star.on { color: #f5b014; transform: scale(1.08); }
+.star.on .i { fill: #f5b014; }
+.rate textarea, .rate input { width: 100%; font: inherit; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); color: var(--text); margin-top: 8px; resize: vertical; min-height: 44px; }
+.rate textarea { min-height: 90px; }
