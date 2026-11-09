@@ -75,15 +75,21 @@ export function buildUnitSession(unit) {
   const seenAll = list.filter((w) => !newOnes.includes(w));
   const seen = shuffle(seenAll).sort((a, b) => (store.word(a.id)?.b || 0) - (store.word(b.id)?.b || 0)).slice(0, newOnes.length ? 6 : 10);
   const items = [];
+  const introduced = [];
   for (let i = 0; i < newOnes.length; i += 2) {
     const pair = newOnes.slice(i, i + 2);
     pair.forEach((w) => items.push({ type: "intro", word: w }));
-    pair.forEach((w) => items.push(wordTask(w, 0)));
+    // задания на новую пару + одно слово из прошлых пар — в случайном порядке,
+    // чтобы ответы не шли в том же порядке, что и карточки
+    const back = introduced.length ? [introduced[Math.floor(Math.random() * introduced.length)]] : [];
+    shuffle([...pair, ...back]).forEach((w) => items.push(wordTask(w, 0)));
+    introduced.push(...pair);
   }
+  // дальше всё вперемешку: старые слова, закрепление новых и «найди пары»
+  const tail = shuffle([...seen.map((w) => wordTask(w)), ...newOnes.map((w) => wordTask(w, 2))]);
   const forMatch = shuffle([...newOnes, ...seen]).slice(0, 5);
-  if (forMatch.length >= 4) items.push({ type: "match", words: forMatch });
-  shuffle(seen).forEach((w) => items.push(wordTask(w)));
-  newOnes.forEach((w) => items.push(wordTask(w, 2)));
+  if (forMatch.length >= 4) tail.splice(Math.floor(Math.random() * (tail.length + 1)), 0, { type: "match", words: forMatch });
+  items.push(...tail);
   return { kind: "unit", id: unit.id, title: `${unit.icon} ${tr(unit)}`, items };
 }
 
@@ -227,6 +233,9 @@ export function runSession(root, session, onDone) {
     const title = res.verdict === "ok" ? t("correct") : res.verdict === "almost" ? t("almost") : t("wrong");
     fb.innerHTML = `<div class="fb-title">${ok ? "✔" : "✖"} ${esc(title)}</div>` +
       (res.verdict !== "ok" && res.answer ? `<div class="fb-ans">${esc(t("rightAnswer"))} <b>${esc(res.answer)}</b></div>` : "") +
+      // при правильном ответе тоже показываем слово с переводом — так оно лучше запоминается
+      (res.verdict === "ok" && current.word ? `<div class="fb-ans fb-tr"><b>${esc(current.word.sk)}</b> — ${esc(trW(current.word))}</div>` : "") +
+      (res.verdict === "ok" && current.sent ? `<div class="fb-ans fb-tr"><b>${esc(current.sent.sk)}</b> — ${esc(getLang() === "en" ? current.sent.en : current.sent.ru)}</div>` : "") +
       (res.explain && res.verdict !== "ok" ? `<div class="fb-exp">${esc(res.explain)}</div>` : "") +
       (res.verdict !== "ok" ? `<a class="fb-report" target="_blank" rel="noopener" href="${reportUrl(reportContext())}">${esc(t("reportHere"))}</a>` : "");
     if (res.speak) {
