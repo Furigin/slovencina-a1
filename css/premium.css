@@ -341,3 +341,18 @@ table.flipped th { width: 34%; }
 .star.on .i { fill: #f5b014; }
 .rate textarea, .rate input { width: 100%; font: inherit; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); color: var(--text); margin-top: 8px; resize: vertical; min-height: 44px; }
 .rate textarea { min-height: 90px; }
+
+/* ---------- переход на A2: метка NEW и карточка внизу A1 ---------- */
+.level-seg button { position: relative; }
+.new-badge { position: absolute; top: -8px; right: 8px; background: var(--grad); color: #fff; font-size: 10px; font-weight: 800; letter-spacing: .04em; padding: 2px 7px; border-radius: 999px; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+.next-level { display: flex; gap: 14px; align-items: flex-start; margin-top: 18px; }
+.next-level .nl-badge { flex: none; width: 54px; height: 54px; border-radius: 16px; display: grid; place-items: center; font-size: 20px; font-weight: 800; color: #fff; background: var(--grad); }
+.next-level .nl-body { min-width: 0; }
+.next-level p { margin: 4px 0 10px; }
+
+/* ---------- смена имени ---------- */
+.pname { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; overflow-wrap: anywhere; }
+.rename-btn { background: var(--card2); border: 1px solid var(--line); border-radius: 10px; width: 34px; height: 34px; display: grid; place-items: center; cursor: pointer; color: var(--text); padding: 0; }
+.rename-btn svg { width: 16px; height: 16px; }
+.rename-input { width: 100%; font: inherit; font-size: 18px; font-weight: 700; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--card2); color: var(--text); margin-top: 8px; }
+.rename-err { color: var(--bad); min-height: 1.2em; margin: 6px 0; }

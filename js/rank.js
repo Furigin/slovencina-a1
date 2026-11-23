@@ -2,7 +2,7 @@
 //  РЕЙТИНГ: медали топ-5, цветные ники, борьба за №1, кэш рейтинга.
 //  Опыт за место не даём — мотивация только статусом (корона, титул, свечение).
 // =====================================================================
-import { cloud, fetchLeaderboard } from "./cloud.js";
+import { cloud, fetchLeaderboard, shownNick } from "./cloud.js";
 import { store, localGet, localSet } from "./store.js";
 
 // цвета медалей: [светлый, основной, тёмный]
@@ -64,8 +64,8 @@ export async function myStanding() {
   const rows = await getLeaderboard();
   // свой опыт берём из локального прогресса — он свежее, чем в облаке
   const meUid = cloud.user.uid;
-  const merged = rows.map((r) => (r.uid === meUid ? { ...r, weekXp: store.weekXp, xp: store.xp } : r));
-  if (!merged.some((r) => r.uid === meUid)) merged.push({ uid: meUid, nick: cloud.user.nick, weekXp: store.weekXp, xp: store.xp, streak: store.streak });
+  const merged = rows.map((r) => (r.uid === meUid ? { ...r, nick: shownNick(), weekXp: store.weekXp, xp: store.xp } : r));
+  if (!merged.some((r) => r.uid === meUid)) merged.push({ uid: meUid, nick: shownNick(), weekXp: store.weekXp, xp: store.xp, streak: store.streak });
   const week = weekRanking(merged);
   const pos = week.findIndex((r) => r.uid === meUid);
   const res = { week, pos: pos >= 0 ? pos + 1 : null, me: merged.find((r) => r.uid === meUid), leader: week[0] || null, dethroned: null };

@@ -11,7 +11,7 @@ const LESSON_HUE = { 1: 228, 2: 262, 3: 198, 4: 322, 5: 160, 6: 24, 7: 190, 8: 3
 import { clockSvg, timePhrase } from "./clock.js";
 import { DIALOGS } from "./listening.js";
 import { store, ACHIEVEMENTS, levelInfo, dayKey, dayNum, exportProgress, importProgress, GOALS, localGet, localSet } from "./store.js";
-import { cloud, initCloud, login, register, logout, resetPassword, authErrorKey, validNick, takeGuestMergedFlag, sendFeedback } from "./cloud.js";
+import { cloud, initCloud, login, register, logout, resetPassword, authErrorKey, validNick, takeGuestMergedFlag, sendFeedback, shownNick, cleanNick, flush } from "./cloud.js";
 import { medalSvg, nickClass, getLeaderboard, myStanding, daysLeftInWeek } from "./rank.js";
 import { t, tr, setLang, getLang, nWords } from "./i18n.js";
 import { speak, stopSpeaking, hasVoice, onVoice, sfx, vibrate } from "./speech.js";
@@ -79,7 +79,8 @@ function levelTabs() {
   return `<div class="seg level-seg">${LEVELS.map((lv) => {
     const ids = new Set(LESSONS.filter((l) => l.level === lv).flatMap((l) => l.units.flatMap((u) => u.list.map((w) => w.id))));
     const c = store.counts(ids);
-    return `<button data-level="${lv}" class="${curLevel() === lv ? "active" : ""}"><b>${lv}</b> <small>${c.learned}/${c.total}</small></button>`;
+    const isNew = lv === "A2" && curLevel() !== "A2" && !localGet("seenA2");
+    return `<button data-level="${lv}" class="${curLevel() === lv ? "active" : ""}"><b>${lv}</b> <small>${c.learned}/${c.total}</small>${isNew ? `<span class="new-badge">NEW</span>` : ""}</button>`;
   }).join("")}</div>`;
 }
 
@@ -134,11 +135,26 @@ function screenLearn() {
     ${questsCard()}
     ${due ? `<a class="banner" href="#/review">🔁 ${esc(t("reviewDue"))}: <b>${due}</b> → </a>` : ""}
     ${!hasVoice() && !localGet("voiceNoteHidden") ? `<div class="note small">🔇 ${esc(t("noVoice"))} <button class="link hide-voice">✕</button></div>` : ""}
-    ${html}`);
+    ${html}
+    ${curLevel() === "A1" ? `
+      <div class="card next-level">
+        <div class="nl-badge">A2</div>
+        <div class="nl-body">
+          <b>${esc(t("nextLevelTitle"))}</b>
+          <p class="muted small">${esc(t("nextLevelText"))}</p>
+          <button class="btn primary" data-level="A2">${esc(t("nextLevelBtn"))} →</button>
+        </div>
+      </div>` : ""}`);
 
   app.querySelector(".hide-voice")?.addEventListener("click", () => { localSet("voiceNoteHidden", true); render(); });
   app.querySelectorAll(".unit").forEach((b) => (b.onclick = () => unitSheet(UNIT_BY_ID[b.dataset.unit])));
-  app.querySelectorAll(".level-seg button").forEach((b) => (b.onclick = () => { store.setSetting("level", b.dataset.level); screenLearn.scrolled = false; render(); }));
+  app.querySelectorAll(".level-seg button, .next-level [data-level]").forEach((b) => (b.onclick = () => {
+    if (b.dataset.level === "A2") localSet("seenA2", true);
+    store.setSetting("level", b.dataset.level);
+    screenLearn.scrolled = false;
+    render();
+    window.scrollTo(0, 0);
+  }));
   maybeRemind();
   renderStanding();
   maybeAskRating();
@@ -197,6 +213,52 @@ function maybeAskRating() {
   if (Date.now() - localGet("rateAsked", 0) < 3 * 86400000) return; // спрашивали недавно
   localSet("rateAsked", Date.now());
   setTimeout(() => { if (!document.querySelector(".sheet-wrap") && location.hash.replace(/^#\/?/, "") === "") rateSheet(); }, 1200);
+}
+
+// Смена имени в рейтинге. Логин (ник для входа) не меняется: он зашит в аккаунт Firebase.
+function renameSheet() {
+  if (!cloud.user) return go("#/login");
+  const sheet = document.createElement("div");
+  sheet.className = "sheet-wrap";
+  sheet.innerHTML = `
+    <div class="sheet rename">
+      <div class="sheet-ic">✏️</div>
+      <h2>${esc(t("renameTitle"))}</h2>
+      <p class="muted">${esc(t("renameText").replace("{login}", cloud.user.nick))}</p>
+      <input class="rename-input" maxlength="20" autocomplete="off" spellcheck="false" value="${esc(shownNick())}">
+      <p class="rename-err small"></p>
+      <button class="btn primary wide rename-save">${esc(t("renameSave"))}</button>
+      <button class="btn ghost wide rename-cancel">${esc(t("renameCancel"))}</button>
+    </div>`;
+  document.body.appendChild(sheet);
+  const input = sheet.querySelector(".rename-input");
+  const err = sheet.querySelector(".rename-err");
+  const save = sheet.querySelector(".rename-save");
+  input.focus(); input.select();
+  sheet.querySelector(".rename-cancel").onclick = () => sheet.remove();
+  sheet.onclick = (e) => { if (e.target === sheet) sheet.remove(); };
+  input.onkeydown = (e) => { if (e.key === "Enter") save.click(); };
+  save.onclick = async () => {
+    const name = cleanNick(input.value);
+    err.textContent = "";
+    if ([...name].length < 2 || [...name].length > 20) { err.textContent = t("renameLen"); return; }
+    save.disabled = true; save.textContent = "…";
+    try {
+      // имя не должно совпадать с чужим в рейтинге, иначе учеников не различить
+      const rows = await getLeaderboard(true);
+      const low = name.toLowerCase();
+      if (rows.some((r) => r.uid !== cloud.user.uid && String(r.nick || "").toLowerCase() === low)) {
+        err.textContent = t("renameTaken"); save.disabled = false; save.textContent = t("renameSave"); return;
+      }
+    } catch (e) { /* рейтинг не загрузился — проверку пропускаем, имя всё равно сохраним */ }
+    store.p.dname = name === cloud.user.nick ? "" : name;
+    store.save();
+    await flush();
+    await getLeaderboard(true).catch(() => {});
+    sheet.remove();
+    toast(`✏️ ${t("renameDone")}`);
+    render();
+  };
 }
 
 function rateSheet() {
@@ -434,12 +496,12 @@ function screenProfile() {
   const lv = levelInfo(xp);
   const c = store.counts();
   const s = store.settings;
-  const nick = cloud.user?.nick || store.p.nick || "";
+  const nick = cloud.user ? shownNick() : store.p.nick || "";
   app.innerHTML = frame("profile", `
     <div class="profile-head">
       <div class="avatar">${nick ? esc([...nick][0].toUpperCase()) : "🙂"}</div>
       <div>
-        <h1>${esc(nick || (getLang() === "en" ? "Guest" : "Гость"))}</h1>
+        <h1 class="pname">${esc(nick || (getLang() === "en" ? "Guest" : "Гость"))}${cloud.user ? ` <button class="rename-btn do-rename" title="${esc(t("renameBtn"))}" aria-label="${esc(t("renameBtn"))}">✏️</button>` : ""}</h1>
         <div class="muted">${esc(t("level"))} ${lv.lvl}</div>
         <div class="lvl-bar"><div style="width:${Math.round(lv.frac * 100)}%"></div></div>
         <small class="muted">${xp - lv.from} / ${lv.to - lv.from} XP</small>
@@ -510,6 +572,8 @@ function screenProfile() {
   app.querySelector(".do-export").onclick = exportProgress;
   app.querySelector(".do-share").onclick = shareSite;
   app.querySelector(".do-rate").onclick = () => rateSheet();
+  app.querySelector(".do-rename")?.addEventListener("click", renameSheet);
+  app.querySelector(".acc-rename")?.addEventListener("click", renameSheet);
   app.querySelector(".do-import").onchange = async (e) => {
     const f = e.target.files[0];
     if (!f) return;
@@ -524,7 +588,7 @@ function screenProfile() {
       if (!el || !rows) return;
       const list = [...rows].sort((a, b) => (mode === "week" ? b.weekXp - a.weekXp : b.xp - a.xp)).filter((r) => (mode === "week" ? r.weekXp > 0 : r.xp > 0)).slice(0, 50);
       el.classList.remove("muted");
-      el.innerHTML = list.map((r, i) => `<div class="lb-row ${r.uid === cloud.user.uid ? "me" : ""} ${i < 5 ? "top r" + (i + 1) : ""}"><span class="lb-pos">${medalSvg(i + 1)}</span><span class="lb-nick ${nickClass(i + 1)}">${i === 0 ? '<svg class="i crown"><use href="#i-crown"></use></svg>' : ""}${esc(r.nick)}${i === 0 ? `<small class="lb-title">${esc(mode === "week" ? t("champWeek") : t("champAll"))}</small>` : ""}</span><span class="lb-streak">🔥${r.streak}</span><b>${mode === "week" ? r.weekXp : r.xp} XP</b></div>`).join("") || "—";
+      el.innerHTML = list.map((r) => (r.uid === cloud.user.uid ? { ...r, nick: shownNick() } : r)).map((r, i) => `<div class="lb-row ${r.uid === cloud.user.uid ? "me" : ""} ${i < 5 ? "top r" + (i + 1) : ""}"><span class="lb-pos">${medalSvg(i + 1)}</span><span class="lb-nick ${nickClass(i + 1)}">${i === 0 ? '<svg class="i crown"><use href="#i-crown"></use></svg>' : ""}${esc(r.nick)}${i === 0 ? `<small class="lb-title">${esc(mode === "week" ? t("champWeek") : t("champAll"))}</small>` : ""}</span><span class="lb-streak">🔥${r.streak}</span><b>${mode === "week" ? r.weekXp : r.xp} XP</b></div>`).join("") || "—";
     };
     getLeaderboard(true).then((r) => { rows = r; draw(); }).catch(() => { const el = app.querySelector(".lb-list"); if (el) el.textContent = t("syncError"); });
     app.querySelector(".lb-week").onclick = (e) => { mode = "week"; e.target.classList.add("active"); app.querySelector(".lb-all").classList.remove("active"); draw(); };
@@ -608,7 +672,9 @@ function accountBlock() {
   if (!cloud.enabled) return `<p>⚠️ ${esc(t("cloudOff"))}</p>`;
   if (!cloud.user) return `<p>⚠️ ${esc(t("guestMode"))}</p><a class="btn primary wide" href="#/login">${esc(t("login"))} / ${esc(t("register"))}</a>`;
   const st = cloud.status === "error" ? `⚠️ ${t("syncError")}` : cloud.status === "saving" ? `⏳ ${t("syncing")}` : `✅ ${t("synced")}`;
-  return `<p>${esc(t("loggedAs"))} <b>${esc(cloud.user.nick)}</b></p><p class="muted">${esc(st)}</p><button class="btn ghost wide do-logout">${esc(t("logout"))}</button>`;
+  const dn = shownNick();
+  return `<p>${esc(t("loggedAs"))} <b>${esc(cloud.user.nick)}</b></p>
+    <p class="muted small">${esc(t("shownAs"))} <b>${esc(dn)}</b> · <button class="link acc-rename">${esc(t("renameBtn"))}</button></p><p class="muted">${esc(st)}</p><button class="btn ghost wide do-logout">${esc(t("logout"))}</button>`;
 }
 
 function heatmap() {
@@ -1169,10 +1235,30 @@ function screenListen(id) {
 // =====================================================================
 //  НАВИГАЦИЯ
 // =====================================================================
+// Прокрутка: запоминаем, где был ученик на каждой странице-списке.
+// Вернулся из занятия / карточек / блица — ставим страницу туда же, где была,
+// а не наверх (раньше после каждого занятия приходилось листать заново).
+const scrollPos = {};
+let curRoute = null;
+const ACTIVITY = new Set(["s", "cards", "rand", "blitz", "verbs", "listen", "login"]);
+function restoreScroll(route) {
+  const y = scrollPos[route] || 0;
+  window.scrollTo(0, y);
+  // часть экрана дорисовывается чуть позже (рейтинг, иконки) — повторяем
+  if (y) requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, y)));
+}
+
 function render() {
-  const parts = location.hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent);
+  const route = location.hash.replace(/^#\/?/, "");
+  const parts = route.split("/").map(decodeURIComponent);
   const [a, b, c] = parts;
-  window.scrollTo(0, 0);
+  const prev = curRoute;
+  if (prev !== null && !ACTIVITY.has(prev.split("/")[0])) scrollPos[prev] = window.scrollY;
+  curRoute = route;
+  const fromActivity = prev !== null && ACTIVITY.has(prev.split("/")[0]);
+  // экраны-занятия и обычные переходы — сверху; возврат из занятия — на прежнее место
+  if (ACTIVITY.has(a) || !fromActivity) window.scrollTo(0, 0);
+  else queueMicrotask(() => restoreScroll(route));
   app.onclick = null; // обработчики экранов не должны переживать смену экрана
   stopSpeaking();
   if (!store.settings.welcomed && !localGet("welcomed") && a !== "login") return screenWelcome();

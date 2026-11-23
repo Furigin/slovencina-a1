@@ -81,6 +81,15 @@ export async function initCloud() {
   });
 }
 
+// Имя, которое видят другие (рейтинг, отзывы). Если ученик его не менял — логин-ник.
+export function shownNick() {
+  return (store.p.dname || cloud.user?.nick || "").slice(0, 20);
+}
+// Чистка нового имени: без управляющих символов и лишних пробелов
+export function cleanNick(s) {
+  return String(s || "").replace(/[\u0000-\u001f\u007f<>]/g, "").replace(/\s+/g, " ").trim();
+}
+
 // ---------- вход / регистрация ----------
 export async function register(nick, pass) {
   const cred = await fb.createUserWithEmailAndPassword(fb.auth, nickToEmail(nick), pass);
@@ -167,7 +176,7 @@ async function saveNow() {
       applyingRemote = false;
     }
     await fb.setDoc(fb.doc(fb.db, "leaderboard", uid), {
-      nick: cloud.user.nick.slice(0, 20),
+      nick: shownNick(),
       xp: store.xp,
       weekXp: store.weekXp,
       week: store.weekId,
@@ -197,7 +206,7 @@ export async function sendFeedback({ stars, text, contact }) {
   if (!fb || !cloud.user) throw new Error("not logged in");
   await fb.addDoc(fb.collection(fb.db, "feedback"), {
     uid: cloud.user.uid,
-    nick: cloud.user.nick.slice(0, 40),
+    nick: `${shownNick()} (${cloud.user.nick})`.slice(0, 40),
     stars,
     text: text.slice(0, 1000),
     contact: contact.slice(0, 100),

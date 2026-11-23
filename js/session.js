@@ -33,16 +33,37 @@ const mainTr = (s) => norm(s.replace(/\(.*?\)/g, "")); // перевод без 
 // =====================================================================
 //  СБОРКА ЗАНЯТИЙ
 // =====================================================================
+// ---------- подбор неправильных вариантов ----------
+// Варианты должны быть ПОХОЖИМИ на правильный ответ, чтобы приходилось вчитываться:
+// «Odbočte doprava» → «Odbočte doľava», «Choďte rovno», «doprava»…
+const tokens = (s) => norm(s).split(" ").filter((x) => x.length > 1);
+const isPhrase = (w) => /\s/.test(w.sk.trim()) || /[.?!]$/.test(w.sk.trim());
+function similarity(w, x) {
+  let sc = 0;
+  if (isPhrase(w) === isPhrase(x)) sc += 3;                       // фраза к фразе, слово к слову
+  const ta = tokens(w.sk), tb = new Set(tokens(x.sk));
+  sc += 3 * ta.filter((t) => tb.has(t)).length;                    // общие словацкие слова
+  const ra = tokens(trW(w)), rb = new Set(tokens(trW(x)));
+  sc += 2 * ra.filter((t) => rb.has(t)).length;                    // общие слова в переводе
+  if (norm(w.sk).slice(0, 3) === norm(x.sk).slice(0, 3)) sc += 2; // похожее начало
+  if (w.g && w.g === x.g) sc += 1.5;                               // тот же род
+  if (x.unit === w.unit) sc += 2;
+  else if (x.lesson === w.lesson) sc += 1;
+  const la = w.sk.length, lb = x.sk.length;
+  sc -= Math.abs(la - lb) / Math.max(la, lb) * 3;                  // похожая длина
+  return sc + Math.random() * 1.5;                                 // немного случайности
+}
 function pool(word, size = 3) {
-  // неправильные варианты: сначала из той же темы, потом из того же урока
-  const same = WORDS.filter((x) => x.unit === word.unit && x.id !== word.id);
-  const lesson = WORDS.filter((x) => x.lesson === word.lesson && x.unit !== word.unit);
+  // кандидаты: тот же уровень (A1/A2/доп. словарь), без самого слова
+  const lvl = (x) => (x.lesson === 0 ? 0 : x.lesson <= 6 ? 1 : 2);
+  const cands = WORDS.filter((x) => x.id !== word.id && lvl(x) === lvl(word));
   // Перевод делим на синонимы («доктор, врач» → [доктор, врач]). Если у варианта
-  // есть общий синоним с уже выбранными — пропускаем, иначе правильных ответов будет два.
+  // есть общий синоним с правильным — пропускаем, иначе правильных ответов будет два.
   const syn = (x) => mainTr(trW(x)).split(/[,;/]/).map((t) => t.trim()).filter(Boolean);
   const used = new Set([...syn(word), norm(word.sk)]);
+  const ranked = cands.map((x) => [similarity(word, x), x]).sort((p, q) => q[0] - p[0]).map((p) => p[1]);
   const res = [];
-  for (const x of [...shuffle(same), ...shuffle(lesson), ...shuffle(WORDS)]) {
+  for (const x of ranked) {
     const keys = syn(x);
     if (keys.some((k) => used.has(k)) || used.has(norm(x.sk))) continue;
     keys.forEach((k) => used.add(k)); used.add(norm(x.sk));
@@ -52,18 +73,20 @@ function pool(word, size = 3) {
   return res;
 }
 
-// задание на слово в зависимости от того, насколько хорошо оно известно
+// задание на слово в зависимости от того, насколько хорошо оно известно.
+// На слух: «послушай — что это значит?» (выбор перевода) и диктант;
+// выбор словацкого слова на слух почти убран — он слишком лёгкий.
 function wordTask(w, level = null) {
   const b = level ?? (store.word(w.id)?.b || 0);
   const voice = canSpeak(w.sk);
   let types;
-  if (b <= 1) types = voice ? ["mc-sk", "mc-sk", "listen"] : ["mc-sk"];
-  else if (b <= 3) types = voice ? ["mc-tr", "listen", "type"] : ["mc-tr", "type"];
-  else types = voice ? ["type", "listen-type", "mc-tr"] : ["type", "mc-tr"];
+  if (b <= 1) types = voice ? ["mc-sk", "mc-sk", "mc-tr", "listen-tr"] : ["mc-sk", "mc-sk", "mc-tr"];
+  else if (b <= 3) types = voice ? ["mc-tr", "type", "type", "listen-tr", "listen-type"] : ["mc-tr", "type", "type"];
+  else types = voice ? ["type", "type", "listen-type", "mc-tr"] : ["type", "type", "mc-tr"];
   const kind = types[Math.floor(Math.random() * types.length)];
   if (kind === "mc-sk") return { type: "mc", dir: "sk", word: w, options: shuffle([w, ...pool(w)]) };
   if (kind === "mc-tr") return { type: "mc", dir: "tr", word: w, options: shuffle([w, ...pool(w)]) };
-  if (kind === "listen") return { type: "listen", word: w, options: shuffle([w, ...pool(w)]) };
+  if (kind === "listen-tr") return { type: "listen", dir: "tr", word: w, options: shuffle([w, ...pool(w)]) };
   if (kind === "listen-type") return { type: "type", word: w, listen: true };
   return { type: "type", word: w };
 }
@@ -303,9 +326,9 @@ export function runSession(root, session, onDone) {
     listen(it) {
       const w = it.word;
       body.innerHTML = `
-        <div class="ex-label">${esc(t("listenChoose"))}</div>
+        <div class="ex-label">${esc(it.dir === "tr" ? t("listenMeaning") : t("listenChoose"))}</div>
         <div class="listen-btns"><button class="speak huge">🔊</button><button class="speak slow">🐢</button></div>
-        <div class="opts">${it.options.map((o, i) => `<button class="opt" data-i="${i}"><span class="k">${i + 1}</span>${esc(o.sk)}</button>`).join("")}</div>`;
+        <div class="opts">${it.options.map((o, i) => `<button class="opt" data-i="${i}"><span class="k">${i + 1}</span>${esc(it.dir === "tr" ? trW(o) : o.sk)}</button>`).join("")}</div>`;
       body.querySelector(".huge").onclick = () => speak(w.sk);
       body.querySelector(".slow").onclick = () => speak(w.sk, { slow: true });
             return choice(it.options, (o) => o === w, `${w.sk} — ${trW(w)}`, w.sk, (o) => o.sk);
@@ -466,7 +489,8 @@ export function runSession(root, session, onDone) {
 
     q(it) {
       const q = it.q;
-      const typed = q.forceTyped || (q.typed && (!q.options || Math.random() < 0.5));
+      // в контрольной чаще просим ввести форму вручную
+      const typed = q.forceTyped || (q.typed && (!q.options || Math.random() < (session.noRetry ? 0.8 : 0.5)));
       body.innerHTML = `
         <div class="ex-label">${esc(typed ? t("grammarType") : t("grammarQ"))}</div>
         <div class="prompt grammar"><span>${esc(q.prompt)}</span>${q.hint ? `<small>${esc(tr(q.hint))}</small>` : ""}</div>

@@ -253,6 +253,13 @@ const POSS = {
 };
 const GI = { m: 0, f: 1, n: 2 };
 
+// правдоподобные, но неправильные формы множественного числа того же слова
+function pluralFakes(sg, pl) {
+  const st = sg.replace(/[aoe]$/, "");
+  return [sg, st + "y", st + "i", st + "e", st + "a", st + "á", sg + "ovia", st + "ia", pl.replace(/i$/, "y"), pl.replace(/y$/, "i"), pl.replace(/á$/, "a")]
+    .filter((x) => x !== pl);
+}
+
 // ---------- числа словами (0–1000) ----------
 const ONES = ["nula", "jeden", "dva", "tri", "štyri", "päť", "šesť", "sedem", "osem", "deväť"];
 const TEENS = ["desať", "jedenásť", "dvanásť", "trinásť", "štrnásť", "pätnásť", "šestnásť", "sedemnásť", "osemnásť", "devätnásť"];
@@ -474,11 +481,15 @@ const GEN = {
   imp() {
     const inf = pick(Object.keys(IMPERATIVE));
     const plural = Math.random() < 0.4;
-    const answer = IMPERATIVE[inf][plural ? 1 : 0];
-    const wrong = Object.values(IMPERATIVE).map((x) => x[plural ? 1 : 0]);
+    const [ty, vy] = IMPERATIVE[inf];
+    const answer = plural ? vy : ty;
+    // неправильные варианты — другие формы того же глагола, а не чужие глаголы
+    // (иначе ответ угадывается по корню, думать не нужно)
+    const pres = PRESENT[inf]?.split(" ") || [];
+    const wrong = [plural ? ty : vy, ty + "me", inf, pres[2], pres[4], pres[0]].filter(Boolean);
     return {
       prompt: `${inf} → ___ !`, hint: plural ? L("(vy) повелительное", "(vy) imperative") : L("(ty) повелительное", "(ty) imperative"),
-      answer, typed: Math.random() < 0.5, options: opts(answer, [IMPERATIVE[inf][plural ? 0 : 1], ...wrong]),
+      answer, typed: Math.random() < 0.6, options: opts(answer, wrong),
       explain: L(`${inf} → ${IMPERATIVE[inf][0]}! / ${IMPERATIVE[inf][1]}!`, `${inf} → ${IMPERATIVE[inf][0]}! / ${IMPERATIVE[inf][1]}!`),
     };
   },
@@ -499,8 +510,8 @@ const GEN = {
     const [sg, pl] = pick(PLURAL);
     return {
       prompt: `${sg} → ?`, hint: L("множественное число", "plural"),
-      answer: pl, typed: Math.random() < 0.5,
-      options: opts(pl, PLURAL.filter((x) => x[0] !== sg).map((x) => x[1]).concat([sg + "y", sg + "i", sg + "a"])),
+      answer: pl, typed: Math.random() < 0.6,
+      options: opts(pl, pluralFakes(sg, pl)),
       explain: L(`${sg} → ${pl}`, `${sg} → ${pl}`),
     };
   },
@@ -517,12 +528,22 @@ const GEN = {
   country() {
     const c = pick(COUNTRIES);
     const kind = rnd(3);
-    if (kind === 0) return { prompt: `Odkiaľ si? (${c[0]})`, hint: L("Som …", "Som …"), answer: c[1], options: opts(c[1], COUNTRIES.map((x) => x[1])) };
+    // неправильные варианты — та же страна, но с ошибкой (предлог, окончание, род)
+    const stem = c[0].replace(/o$|a$/, "");
+    if (kind === 0) {
+      const z = c[1].startsWith("zo ") ? "z" : "zo";
+      return { prompt: `Odkiaľ si? (${c[0]})`, hint: L("Som …", "Som …"), answer: c[1], typed: Math.random() < 0.4,
+        options: opts(c[1], [`${z} ${c[1].split(" ").slice(1).join(" ")}`, `z ${c[0]}`, `zo ${stem}u`, `v ${stem}e`, `do ${c[1].split(" ").slice(1).join(" ")}`]) };
+    }
     if (kind === 1) {
       const f = Math.random() < 0.5;
-      return { prompt: `${c[0]} — ${f ? "žena" : "muž"}`, hint: L("Národnosť?", "Nationality?"), answer: c[f ? 3 : 2], options: opts(c[f ? 3 : 2], COUNTRIES.map((x) => x[f ? 3 : 2]).concat([c[f ? 2 : 3]])) };
+      const ans = c[f ? 3 : 2];
+      return { prompt: `${c[0]} — ${f ? "žena" : "muž"}`, hint: L("Národnosť?", "Nationality?"), answer: ans, typed: Math.random() < 0.4,
+        options: opts(ans, [c[f ? 2 : 3], c[2] + "ka", c[2] + "ovka", c[3].replace(/ka$/, "ová")]) };
     }
-    return { prompt: `Ako hovoríš? (${c[0]})`, hint: L("Hovorím …", "Hovorím …"), answer: c[4], options: opts(c[4], COUNTRIES.map((x) => x[4])) };
+    const adv = c[4].replace("po ", "");
+    return { prompt: `Ako hovoríš? (${c[0]})`, hint: L("Hovorím …", "Hovorím …"), answer: c[4], typed: Math.random() < 0.4,
+      options: opts(c[4], [adv, `po ${adv.replace(/y$/, "ý")}`, `v ${adv}`, `po ${adv.replace(/sky$/, "ština").replace(/cky$/, "čina")}`]) };
   },
 };
 

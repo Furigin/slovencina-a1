@@ -186,9 +186,9 @@ button.wchip::after { content: " 🔊"; font-size: 11px; opacity: .6; }
 /* ---------- карточки, сетки ---------- */
 .card { background: var(--card); border: 2px solid var(--line); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
 .card.center { text-align: center; }
-.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.link-card { display: flex; flex-direction: column; color: var(--text); font-weight: 800; }
-.link-card small { color: var(--muted); font-weight: 600; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.link-card { display: flex; flex-direction: column; color: var(--text); font-weight: 800; min-width: 0; overflow-wrap: anywhere; }
+.link-card small { color: var(--muted); font-weight: 600; margin-top: 4px; }
 .review-main { text-align: center; }
 .big-num { font-size: 56px; font-weight: 900; color: var(--primary); line-height: 1; }
 .boxes { display: flex; gap: 6px; align-items: flex-end; height: 120px; margin-top: 14px; }

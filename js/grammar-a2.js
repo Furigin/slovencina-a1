@@ -59,6 +59,12 @@ const INS_WITH = [
 ];
 const INS_PRON = [["ja", "mnou", "so"], ["ty", "tebou", "s"], ["on", "ním", "s"], ["ona", "ňou", "s"], ["my", "nami", "s"], ["vy", "vami", "s"], ["oni", "nimi", "s"]];
 
+// неправильные формы того же слова: другой падеж / не то окончание
+function insFakes(nom, ins) {
+  const st = nom.replace(/[aoe]$/, "");
+  return [nom, st + "om", st + "ou", st + "e", st + "u", st + "y", ins.replace(/om$/, "ou"), ins.replace(/ou$/, "om")].filter((x) => x !== ins);
+}
+
 // ---------- родительный падеж: [именит., родит.] ----------
 const GEN_PLACE = [["škola", "školy"], ["obchod", "obchodu"], ["mesto", "mesta"], ["Bratislava", "Bratislavy"], ["kino", "kina"], ["divadlo", "divadla"], ["banka", "banky"], ["univerzita", "univerzity"], ["park", "parku"], ["stanica", "stanice"], ["práca", "práce"], ["kancelária", "kancelárie"], ["námestie", "námestia"], ["múzeum", "múzea"], ["Slovensko", "Slovenska"], ["Žilina", "Žiliny"]];
 const GEN_PERSON = [["lekár", "lekára"], ["mama", "mamy"], ["brat", "brata"], ["kamarát", "kamaráta"], ["babka", "babky"], ["otec", "otca"], ["sestra", "sestry"], ["kaderník", "kaderníka"]];
@@ -161,11 +167,11 @@ const GEN = {
     const r = rnd(3);
     if (r === 0) {
       const [nom, ins] = pick(INS_TRANSPORT);
-      return { prompt: "Cestujem ___ .", hint: L(`(${nom}) — на чём?`, `(${nom}) — by what?`), answer: ins, typed: Math.random() < 0.4, options: opts(ins, INS_TRANSPORT.map((x) => x[1]).concat([nom + "ou", nom + "om"])), explain: L("Чем? м. и ср. род — -om, ж. род — -ou", "By what? masc./neut. -om, fem. -ou") };
+      return { prompt: "Cestujem ___ .", hint: L(`(${nom}) — на чём?`, `(${nom}) — by what?`), answer: ins, typed: Math.random() < 0.5, options: opts(ins, insFakes(nom, ins)), explain: L("Чем? м. и ср. род — -om, ж. род — -ou", "By what? masc./neut. -om, fem. -ou") };
     }
     if (r === 1) {
       const [nom, ins, s, fr] = pick(INS_WITH);
-      return { prompt: `${fr} ${s} ___ .`, hint: L(`(${nom}) — с кем? с чем?`, `(${nom}) — with whom/what?`), answer: ins, typed: Math.random() < 0.4, options: opts(ins, INS_WITH.map((x) => x[1]).concat([nom, nom + "ou"])), explain: L(`${s} ${ins}`, `${s} ${ins}`) };
+      return { prompt: `${fr} ${s} ___ .`, hint: L(`(${nom}) — с кем? с чем?`, `(${nom}) — with whom/what?`), answer: ins, typed: Math.random() < 0.5, options: opts(ins, insFakes(nom, ins)), explain: L(`${s} ${ins}`, `${s} ${ins}`) };
     }
     const [p, ins, s] = pick(INS_PRON);
     return { prompt: `Mama pôjde do kina ${s} ___ .`, hint: L(`(${p})`, `(${p})`), answer: ins, options: opts(ins, INS_PRON.map((x) => x[1])), explain: L("so mnou, s tebou, s ním, s ňou, s nami, s vami, s nimi", "so mnou, s tebou, s ním, s ňou, s nami, s vami, s nimi") };

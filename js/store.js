@@ -44,6 +44,7 @@ export function emptyProgress() {
     frozen: {},   // дни, спасённые заморозкой: "2026-10-28" → 1
     mist: {},     // «Мои ошибки»: id слова → сколько раз подряд ответил правильно после ошибки
     nick: "",
+    dname: "",    // имя в рейтинге (можно менять); логин-ник при этом прежний
     created: Date.now(),
     updated: 0,
   };
@@ -80,6 +81,7 @@ export function merge(a, b) {
   const newer = (b.updated || 0) > (a.updated || 0) ? b : a;
   out.settings = { ...a.settings, ...b.settings, ...newer.settings };
   out.nick = newer.nick || a.nick || b.nick;
+  out.dname = newer.dname || a.dname || b.dname || "";
   out.created = Math.min(a.created || Date.now(), b.created || Date.now());
   out.updated = Math.max(a.updated || 0, b.updated || 0);
   out.lastCheck = Math.max(a.lastCheck || 0, b.lastCheck || 0);
