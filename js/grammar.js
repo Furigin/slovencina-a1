@@ -18,8 +18,18 @@ export function shuffle(arr) {
   return a;
 }
 // варианты ответа: правильный + неправильные (без повторов), перемешанные
+// Неправильные варианты, которые сразу видно как «не слово» (otcaa, kinoe, pivoom,
+// dedkoovi): такие отбрасываем — иначе ответ угадывается без знания грамматики.
+// Ищем стык двух гласных, которого в словацких окончаниях не бывает.
+// Стык, который есть и в самом ответе (kakao), не считается нелепым.
+const ABSURD = /aa|ee|ii|oo|uu|yy|ao|oa|ae|oe|ua|uo|ea|eo|ai|oi|ui|ay|oy|ey|uy|iy|áa|éa|au$|[ďťňľ][eií]/gi;
+export function sane(answer, wrong) {
+  const ok = String(answer).toLowerCase();
+  const absurd = (w) => (String(w).match(ABSURD) || []).some((x) => !ok.includes(x.toLowerCase()));
+  return wrong.filter((w) => w && w !== answer && !absurd(w));
+}
 function opts(answer, wrong, n = 4) {
-  const uniq = [...new Set(wrong.filter((w) => w !== answer))];
+  const uniq = [...new Set(sane(answer, wrong))];
   return shuffle([answer, ...shuffle(uniq).slice(0, n - 1)]);
 }
 const L = (ru, en) => ({ ru, en });
@@ -286,6 +296,47 @@ function adjForms(m) {
   const stem = m.slice(0, -1);
   return m.endsWith("ý") ? [m, stem + "á", stem + "é"] : [m, stem + "a", stem + "e"];
 }
+// Правдоподобные, но неправильные падежные формы того же слова:
+// pero → peru, pera, pery, perom…  (чтобы выбирать приходилось по правилу, а не «на глаз»)
+export function caseFakes(nom, ans) {
+  const st = nom.replace(/[aoeu]$/, "");
+  const st2 = st.replace(/e([^aeiouáéíóúýô])$/, "$1"); // otec → otc (беглое e)
+  return [nom, st + "u", st + "a", st + "y", st + "e", st + "i", st + "ou", st + "om", st2 + "a", st2 + "u",
+    nom + "a", ans.replace(/a$/, "u"), ans.replace(/u$/, "a"), ans.replace(/e$/, "i"), ans.replace(/i$/, "e")];
+}
+
+// группы для тренажёра «Aký? Aká? Aké?»: какие прилагательные подходят к каким словам
+const COLORS = ["modrý", "červený", "zelený", "žltý", "biely", "čierny", "sivý", "ružový", "oranžový", "fialový", "hnedý"];
+const ADJ_GROUPS = [
+  { // люди: внешность и характер
+    nouns: ["muž", "žena", "chlapec", "dievča", "dieťa", "dedko", "babka", "pán", "pani", "slečna", "človek", "priateľ", "kamarát",
+      "doktor", "lekár", "učiteľ", "študent", "žiak", "kuchár", "čašník", "policajt", "spevák", "úradník", "tenista",
+      "otec", "mama", "syn", "dcéra", "brat", "sestra", "vnuk", "vnučka", "manžel", "manželka", "teta", "strýko", "ujo",
+      "šofér", "maliar", "fotograf", "pilot", "programátor", "sudca", "tanečník", "kolega", "spisovateľ", "inžinier", "manažér", "letuška"],
+    adj: ["hladný", "smädný", "chorý", "zdravý", "smutný", "veselý", "múdry", "hlúpy", "inteligentný", "aktívny", "lenivý",
+      "šťastný", "nešťastný", "úspešný", "usilovný", "sympatický", "unavený", "mladý", "starý", "vysoký", "nízky", "štíhly", "tučný", "pekný"],
+  },
+  { // вещи: цвет, размер, вид
+    nouns: ["stôl", "stolička", "kniha", "zošit", "pero", "ceruzka", "guma", "pravítko", "taška", "tabuľa", "počítač", "kalkulačka", "mapa",
+      "kalendár", "slovník", "mobil", "okno", "kreslo", "lampa", "kôš", "lopta", "kľúč", "pohár", "televízor", "posteľ",
+      "čiapka", "dáždnik", "šál", "kabát", "sukňa", "košeľa", "sveter", "tričko"],
+    adj: [...COLORS, "malý", "veľký", "nový", "starý", "pekný", "škaredý", "ťažký", "ľahký", "čistý", "špinavý", "moderný", "obľúbený"],
+  },
+  { // еда и напитки
+    nouns: ["jedlo", "voda", "čaj", "káva", "mlieko", "pivo", "víno", "džús", "minerálka", "mäso", "ryba", "zmrzlina", "chlieb",
+      "ryža", "čokoláda", "jogurt", "šalát", "syr", "dezert"],
+    adj: ["dobrý", "studený", "teplý", "sladký", "obľúbený"],
+  },
+  { // город и здания
+    nouns: ["mesto", "ulica", "námestie", "park", "most", "palác", "trh", "supermarket", "banka", "pošta", "kino", "divadlo",
+      "múzeum", "galéria", "knižnica", "kaviareň", "reštaurácia", "nemocnica", "univerzita", "hotel", "stanica", "letisko", "dom", "škola"],
+    adj: ["veľký", "malý", "nový", "starý", "pekný", "škaredý", "moderný", "čistý", "špinavý", "obľúbený", "tmavý", "svetlý"],
+  },
+  { // транспорт
+    nouns: ["autobus", "električka", "vlak", "taxík", "auto", "lietadlo", "bicykel"],
+    adj: [...COLORS, "rýchly", "pomalý", "nový", "starý", "moderný", "veľký", "malý"],
+  },
+];
 const GENDER_NAME = { m: L("мужской род", "masculine"), f: L("женский род", "feminine"), n: L("средний род", "neuter") };
 
 const GEN = {
@@ -319,7 +370,10 @@ const GEN = {
     };
   },
   adj() {
-    const n = pick(nouns()), a = pick(adjectives());
+    // осмысленные пары: «hladný internet» и «štíhle nebo» учат плохому
+    const g = pick(ADJ_GROUPS);
+    const ns = nouns().filter((w) => g.nouns.includes(w.sk));
+    const n = pick(ns), a = { sk: pick(g.adj) };
     const forms = adjForms(a.sk);
     const answer = forms[GI[n.g]];
     return {
@@ -451,7 +505,7 @@ const GEN = {
     return {
       prompt: `${verb} ___ .`, hint: L(`(${nom}) — koho? čo?`, `(${nom}) — koho? čo?`),
       answer: acc, typed: Math.random() < 0.5,
-      options: opts(acc, [nom, nom + "a", nom.replace(/a$/, "y"), acc + "a"]),
+      options: opts(acc, caseFakes(nom, acc)),
       explain: L(`${nom} → ${acc} (${rule.ru})`, `${nom} → ${acc} (${rule.en})`),
     };
   },

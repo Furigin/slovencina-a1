@@ -490,6 +490,7 @@ th { background: var(--sel); font-weight: 800; }
 .d-sk { font-weight: 700; font-size: 17px; }
 .d-tr { color: var(--muted); font-size: 14px; margin-top: 2px; }
 .d-line.now .d-bubble { border-color: var(--primary); transform: scale(1.02); }
+.hide-tr .d-tr { display: none; }
 .hidden-text .d-sk { filter: blur(6px); user-select: none; }
 .l-q .opts { margin-top: 8px; }
 .l-q.answered .opt { cursor: default; }

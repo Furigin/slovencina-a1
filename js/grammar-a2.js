@@ -6,7 +6,14 @@
 const rnd = (n) => Math.floor(Math.random() * n);
 const pick = (a) => a[rnd(a.length)];
 const shuffle = (arr) => { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-const opts = (answer, wrong, n = 4) => shuffle([answer, ...shuffle([...new Set(wrong.filter((w) => w !== answer))]).slice(0, n - 1)]);
+// без «не слов» вроде kinoe / pivoom: стык гласных, которого нет в словацких окончаниях
+// (та же проверка, что sane() в grammar.js; здесь своя копия, чтобы не было кругового импорта)
+const ABSURD = /aa|ee|ii|oo|uu|yy|ao|oa|ae|oe|ua|uo|ea|eo|ai|oi|ui|ay|oy|ey|uy|iy|áa|éa|au$|[ďťňľ][eií]/gi;
+const sane = (answer, wrong) => {
+  const ok = String(answer).toLowerCase();
+  return wrong.filter((w) => w && w !== answer && !(String(w).match(ABSURD) || []).some((x) => !ok.includes(x.toLowerCase())));
+};
+const opts =(answer, wrong, n = 4) => shuffle([answer, ...shuffle([...new Set(sane(answer, wrong))]).slice(0, n - 1)]);
 const L = (ru, en) => ({ ru, en });
 const same = (s) => L(s, s);
 

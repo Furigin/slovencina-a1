@@ -338,7 +338,9 @@ export const store = {
     give("xp2000", this.xp >= 2000);
     give("grammar5", Object.keys(this.p.drills).length >= 5);
     give("lesson", LESSONS.some((l) => l.units.every((u) => this.p.units[u.id]?.plays)));
-    give("allLessons", LESSONS.every((l) => l.units.every((u) => this.p.units[u.id]?.plays)));
+    const allDone = (lv) => LESSONS.filter((l) => l.level === lv).every((l) => l.units.every((u) => this.p.units[u.id]?.plays));
+    give("allLessons", allDone("A1"));
+    give("allA2", allDone("A2"));
     return got;
   },
 };
@@ -370,7 +372,8 @@ export const ACHIEVEMENTS = [
   ["xp2000", "🌟", "2000 XP", "2000 XP", "Набери 2000 опыта", "Earn 2000 XP"],
   ["grammar5", "🧠", "Грамматик", "Grammarian", "Пройди 5 разных тренажёров", "Try 5 different grammar drills"],
   ["lesson", "📗", "Урок пройден", "Lesson done", "Пройди все темы одного урока", "Finish all topics of a lesson"],
-  ["allLessons", "🎓", "Весь учебник", "Whole book", "Пройди все темы всех 6 уроков", "Finish every topic of all 6 lessons"],
+  ["allLessons", "🎓", "Весь учебник A1", "Whole A1 book", "Пройди все темы всех 6 уроков A1", "Finish every topic of all 6 A1 lessons"],
+  ["allA2", "👑", "Весь учебник A2", "Whole A2 book", "Пройди все темы всех 6 уроков A2", "Finish every topic of all 6 A2 lessons"],
 ];
 
 // уровень по опыту: 0, 50, 150, 300, 500, 750…

@@ -35,7 +35,7 @@ const T = {
   renameText: ["Это имя видят другие ученики. Входить в аккаунт ты по-прежнему будешь по нику «{login}».", "Other learners see this name. You still sign in with “{login}”."],
   renameSave: ["Сохранить", "Save"],
   renameCancel: ["Отмена", "Cancel"],
-  renameLen: ["От 2 до 20 символов", "2 to 20 characters"],
+  renameLen: ["2–20 символов: буквы, цифры, пробел, точка, _ или -", "2–20 characters: letters, digits, space, dot, _ or -"],
   renameTaken: ["Такое имя уже есть в рейтинге — выбери другое", "Someone in the leaderboard already has this name"],
   renameDone: ["Имя изменено", "Name changed"],
   shownAs: ["В рейтинге:", "In leaderboard:"],

@@ -22,4 +22,13 @@ assert.ok(m.ach.perfect);
 assert.equal(m.settings.goal, 100, "настройки — с более свежего устройства");
 assert.deepEqual(merge(m, m), m, "повторное слияние ничего не меняет");
 assert.deepEqual(merge(null, b).words, b.words);
+
+// имя в рейтинге: побеждает то, что поменяли позже (в т.ч. возврат к логину)
+const p1 = emptyProgress(), p2 = emptyProgress();
+p1.dname = "Kráľ"; p1.updated = 10;          // старое имя на телефоне
+p2.dname = "furigin"; p2.updated = 20;       // на ноутбуке вернул логин
+assert.equal(merge(p1, p2).dname, "furigin", "новое имя не затирается старым");
+assert.equal(merge(p2, p1).dname, "furigin", "порядок слияния не важен");
+const p3 = emptyProgress(); p3.updated = 30;  // старая копия без поля dname
+assert.equal(merge(p2, p3).dname, "furigin", "копия без имени не стирает имя");
 console.log("✔ слияние прогресса работает");

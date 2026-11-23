@@ -241,7 +241,7 @@ function renameSheet() {
   save.onclick = async () => {
     const name = cleanNick(input.value);
     err.textContent = "";
-    if ([...name].length < 2 || [...name].length > 20) { err.textContent = t("renameLen"); return; }
+    if (!/^[\p{L}\p{N} ._-]{2,20}$/u.test(name)) { err.textContent = t("renameLen"); return; }
     save.disabled = true; save.textContent = "…";
     try {
       // имя не должно совпадать с чужим в рейтинге, иначе учеников не различить
@@ -251,7 +251,7 @@ function renameSheet() {
         err.textContent = t("renameTaken"); save.disabled = false; save.textContent = t("renameSave"); return;
       }
     } catch (e) { /* рейтинг не загрузился — проверку пропускаем, имя всё равно сохраним */ }
-    store.p.dname = name === cloud.user.nick ? "" : name;
+    store.p.dname = name;
     store.save();
     await flush();
     await getLeaderboard(true).catch(() => {});
@@ -466,12 +466,13 @@ let lastDeck = [];
 // =====================================================================
 //  ГРАММАТИКА (шпаргалки + тренажёры)
 // =====================================================================
+const GRAM_OPEN = new Set(); // какие уроки раскрыты на странице грамматики
 function screenGrammar(openLesson) {
   const open = +openLesson || 0;
   app.innerHTML = frame("grammar", `
     <h1>🧩 ${esc(t("navGrammar"))}</h1>
     ${LESSONS.map((l) => `
-      <details class="gram" id="g-${l.id}" ${open === l.id ? "open" : ""}>
+      <details class="gram" id="g-${l.id}" ${open === l.id || GRAM_OPEN.has(l.id) ? "open" : ""}>
         <summary><span class="lesson-num sm">${l.n}</span> <small class="lvl-tag">${l.level}</small> ${esc(l.sk)}</summary>
         ${l.id === 3 ? `<a class="btn primary wide verbs-link" href="#/verbs">📘 ${esc(t("verbsTitle"))}</a>` : ""}
         <div class="gram-drills">${DRILLS.filter((d) => d.lesson === l.id).map((d) => {
@@ -485,7 +486,12 @@ function screenGrammar(openLesson) {
             <div class="table-wrap">${tableHtml(s.rows)}</div>
           </div>`).join("")}
       </details>`).join("")}`);
-  if (open) setTimeout(() => document.getElementById("g-" + open)?.scrollIntoView({ block: "start" }), 30);
+  if (open) GRAM_OPEN.add(open);
+  app.querySelectorAll("details.gram").forEach((el) => el.addEventListener("toggle", () => {
+    const id = +el.id.slice(2);
+    if (el.open) GRAM_OPEN.add(id); else GRAM_OPEN.delete(id);
+  }));
+  if (open && !restoring) setTimeout(() => document.getElementById("g-" + open)?.scrollIntoView({ block: "start" }), 30);
 }
 
 // =====================================================================
@@ -777,13 +783,13 @@ function screenWelcome() {
 function screenCards(unitId) {
   const u = UNIT_BY_ID[unitId];
   if (!u) return go("#/");
-  runCards([...u.list], { id: u.id, title: `${u.icon} ${tr(u)}`, back: "#/" });
+  runCards([...u.list], { id: u.id, title: `${u.icon} ${tr(u)}`, back: lastList ?? "#/" });
 }
 function screenRandom(cat) {
   const deck = randomDeck(cat || "all");
   if (!deck.length) return go("#/dict");
   const u = UNIT_BY_ID[cat];
-  runCards(deck, { id: "rand", title: u ? `${u.icon} ${tr(u)}` : `🎲 ${t("vocabTitle")}`, back: "#/dict", quiz: true });
+  runCards(deck, { id: "rand", title: u ? `${u.icon} ${tr(u)}` : `🎲 ${t("vocabTitle")}`, back: lastList ?? "#/dict", quiz: true });
 }
 
 // Карточки: перевернуть → «Знаю» / «Ещё учу». Незнакомые возвращаются в конец.
@@ -867,7 +873,8 @@ function startSession(kind, id) {
     s.title = `🎯 ${t("quizIt")}`;
   }
   if (!s || !s.items.length) return go("#/");
-  const back = kind === "review" ? "#/review" : kind === "quiz" ? "#/dict" : "#/";
+  // после занятия — обратно туда, откуда его открыли (главная, грамматика, повторение…)
+  const back = lastList ?? (kind === "review" ? "#/review" : kind === "quiz" ? "#/dict" : "#/");
   const xpBefore = store.xp;
   runSession(app, s, (res) => {
     if (!res) return go(back);
@@ -1061,7 +1068,13 @@ function screenVerbs() {
 //  БЛИЦ: 60 секунд, сколько успеешь ответить
 // =====================================================================
 const BLITZ_BY_LESSON = { 2: ["num"], 3: ["clock", "verbs"], 8: ["cases"], 12: ["cases"] };
+// в блице нужен выбор минимум из 3 вариантов: вопросы, где их меньше, пропускаем
 function blitzQuestion(kind) {
+  let q = null;
+  for (let i = 0; i < 20; i++) { q = blitzQuestionRaw(kind); if (q.options?.length >= 3) break; }
+  return q;
+}
+function blitzQuestionRaw(kind) {
   if (kind === "num") {
     const n = Math.random() < 0.7 ? Math.floor(Math.random() * 101) : Math.floor(Math.random() * 1001);
     const near = [...new Set([n + 1, n - 1, n + 10, n - 10, n + 2, n + 11, n + 100].filter((x) => x >= 0 && x <= 1000 && x !== n))];
@@ -1084,7 +1097,7 @@ function screenBlitz(kind) {
   const best = store.p.drills[key]?.best || 0;
   app.innerHTML = `
     <div class="session blitz-screen">
-      <div class="s-top"><a class="icon-btn" href="#/">✕</a><b>⚡ ${esc(t("blitz_" + kind))}</b></div>
+      <div class="s-top"><a class="icon-btn" href="${lastList ?? "#/"}">✕</a><b>⚡ ${esc(t("blitz_" + kind))}</b></div>
       <div class="s-body center">
         <div class="blitz-ic">⚡</div>
         <p>${esc(t("blitzRules"))}</p>
@@ -1100,7 +1113,7 @@ function runBlitz(kind, key, best) {
   let score = 0, wrong = 0, left = LIMIT, busy = false, timer = null;
   app.innerHTML = `
     <div class="session blitz-screen">
-      <div class="s-top"><a class="icon-btn b-quit" href="#/">✕</a><div class="bar"><div class="bar-fill b-time" style="width:100%"></div></div><b class="b-score">0</b></div>
+      <div class="s-top"><a class="icon-btn b-quit" href="${lastList ?? "#/"}">✕</a><div class="bar"><div class="bar-fill b-time" style="width:100%"></div></div><b class="b-score">0</b></div>
       <div class="s-body"><div class="b-q"></div><div class="opts b-opts"></div></div>
     </div>`;
   const qEl = app.querySelector(".b-q"), oEl = app.querySelector(".b-opts");
@@ -1152,7 +1165,7 @@ function finishBlitz(kind, key, best, score, wrong) {
         <div class="res-box st"><small>${esc(t("blitzBest"))}</small><b>${r.best}</b></div>
       </div>
       <a class="btn primary wide" href="#/blitz/${kind}">🔁 ${esc(t("blitzAgain"))}</a>
-      <a class="btn wide" href="#/">${esc(t("continue"))}</a>
+      <a class="btn wide" href="${lastList ?? "#/"}">${esc(t("continue"))}</a>
     </div>`;
   celebrate({ pct: record && score > 0 ? 100 : 40 }, xpBefore);
   checkQuests();
@@ -1176,10 +1189,10 @@ function screenListen(id) {
       <label class="check"><input type="checkbox" class="l-text" ${showText ? "checked" : ""}> ${esc(t("showText"))}</label>
       <label class="check"><input type="checkbox" class="l-tr" ${showTr ? "checked" : ""}> ${esc(t("showTr"))}</label>
     </div>
-    <div class="dialog ${showText ? "" : "hidden-text"}">
+    <div class="dialog ${showText ? "" : "hidden-text"} ${showTr ? "" : "hide-tr"}">
       ${d.lines.map(([who, sk, ru, enT], i) => `<div class="d-line ${who}" data-i="${i}">
         <span class="d-av">${esc([...d.people[who]][0])}</span>
-        <div class="d-bubble"><small>${esc(d.people[who])}</small><span class="d-sk">${esc(sk)}</span>${showTr ? `<span class="d-tr">${esc(en ? enT : ru)}</span>` : ""}</div>
+        <div class="d-bubble"><small>${esc(d.people[who])}</small><span class="d-sk">${esc(sk)}</span><span class="d-tr">${esc(en ? enT : ru)}</span></div>
         <button class="speak sm" data-line="${i}">🔊</button>
       </div>`).join("")}
     </div>
@@ -1196,7 +1209,8 @@ function screenListen(id) {
   playBtn.onclick = async () => {
     if (playing) { playing = false; stopSpeaking(); playBtn.textContent = "▶ " + t("listenPlay"); return; }
     playing = true; playBtn.textContent = "⏸ " + t("listenStop");
-    for (let i = 0; i < d.lines.length && playing; i++) {
+    for (let i = 0; i < d.lines.length; i++) {
+      if (!playing || !playBtn.isConnected) break; // ушёл со страницы или нажал «стоп»
       await playLine(i);
       await new Promise((r) => setTimeout(r, 350)); // пауза между репликами
     }
@@ -1205,7 +1219,7 @@ function screenListen(id) {
   };
   app.querySelectorAll("[data-line]").forEach((b) => (b.onclick = () => { playing = false; playLine(+b.dataset.line); }));
   app.querySelector(".l-text").onchange = (e) => { screenListen.showText = e.target.checked; app.querySelector(".dialog").classList.toggle("hidden-text", !e.target.checked); };
-  app.querySelector(".l-tr").onchange = (e) => { screenListen.showTr = e.target.checked; screenListen(id); };
+  app.querySelector(".l-tr").onchange = (e) => { screenListen.showTr = e.target.checked; app.querySelector(".dialog").classList.toggle("hide-tr", !e.target.checked); };
 
   // вопросы: ответ сразу проверяется
   let answered = 0, right = 0;
@@ -1224,7 +1238,7 @@ function screenListen(id) {
         const xpBefore = store.xp;
         const res = store.finishSession("drill", "listen-" + d.id, { correct: right, total: answered, mistakes: answered - right });
         app.querySelector(".l-result").innerHTML = `<div class="card center"><b>${right}/${answered}</b> · +${res.xp} XP
-          <br><br><a class="btn wide" href="#/">${esc(t("continue"))}</a></div>`;
+          <br><br><a class="btn wide" href="${lastList ?? "#/"}">${esc(t("continue"))}</a></div>`;
         celebrate(res, xpBefore);
         checkQuests();
       }
@@ -1240,6 +1254,8 @@ function screenListen(id) {
 // а не наверх (раньше после каждого занятия приходилось листать заново).
 const scrollPos = {};
 let curRoute = null;
+let lastList = null;   // последняя «обычная» страница (не занятие): туда возвращаемся после занятия
+let restoring = false; // сейчас возвращаемся из занятия — экран не должен сам прокручиваться
 const ACTIVITY = new Set(["s", "cards", "rand", "blitz", "verbs", "listen", "login"]);
 function restoreScroll(route) {
   const y = scrollPos[route] || 0;
@@ -1256,6 +1272,8 @@ function render() {
   if (prev !== null && !ACTIVITY.has(prev.split("/")[0])) scrollPos[prev] = window.scrollY;
   curRoute = route;
   const fromActivity = prev !== null && ACTIVITY.has(prev.split("/")[0]);
+  if (!ACTIVITY.has(a)) lastList = "#/" + route;
+  restoring = !ACTIVITY.has(a) && fromActivity;
   // экраны-занятия и обычные переходы — сверху; возврат из занятия — на прежнее место
   if (ACTIVITY.has(a) || !fromActivity) window.scrollTo(0, 0);
   else queueMicrotask(() => restoreScroll(route));

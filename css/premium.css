@@ -356,3 +356,9 @@ table.flipped th { width: 34%; }
 .rename-btn svg { width: 16px; height: 16px; }
 .rename-input { width: 100%; font: inherit; font-size: 18px; font-weight: 700; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--card2); color: var(--text); margin-top: 8px; }
 .rename-err { color: var(--bad); min-height: 1.2em; margin: 6px 0; }
+
+/* итоги занятия: шапки плашек одной высоты, даже если подпись в 2 строки (узкий телефон) */
+.res-stats { align-items: stretch; }
+.res-box { display: flex; flex-direction: column; }
+.res-box small { min-height: 2.9em; display: flex; align-items: center; justify-content: center; line-height: 1.15; }
+.res-box b { flex: 1; display: flex; align-items: center; justify-content: center; gap: 4px; }

@@ -2,8 +2,9 @@
 // Ищет чешские буквы, дубли, пустые переводы и битые ссылки на антонимы.
 import { WORDS, LESSONS } from "../js/data.js";
 import { DRILLS } from "../js/grammar.js";
+import { CASE_GENS } from "../js/grammar-a2.js";
 
-let errors = 0;
+let errors = 0, blitzThin = 0;
 const err = (m) => { errors++; console.log("✖", m); };
 const CZECH = /[řůěŘŮĚ]/;
 
@@ -41,8 +42,17 @@ for (const d of DRILLS) {
     if (q.options && !q.options.includes(q.answer)) err(`${d.id}: ответа нет среди вариантов (${q.prompt} → ${q.answer})`);
     if (q.options && new Set(q.options).size !== q.options.length) err(`${d.id}: повтор вариантов (${q.prompt})`);
     if (CZECH.test(q.answer)) err(`${d.id}: чешская буква (${q.answer})`);
+    // выбор из одного варианта — не задание (если нет ввода вручную)
+    if (q.options && !q.typed && !q.forceTyped && q.options.length < 2) err(`${d.id}: меньше 2 вариантов (${q.prompt})`);
+    if (!q.options && !q.typed && !q.forceTyped) err(`${d.id}: нет ни вариантов, ни ввода (${q.prompt})`);
   }
 }
+// блиц «падежи»: всегда нужен выбор минимум из 3 вариантов
+for (const gen of CASE_GENS) for (let i = 0; i < 200; i++) {
+  const q = gen();
+  if (!q.options || q.options.length < 3) { blitzThin++; }
+}
+if (blitzThin) console.log(`• блиц «падежи»: ${blitzThin} из ${CASE_GENS.length * 200} вопросов с <3 вариантами (блиц их пропускает)`);
 
 const units = LESSONS.reduce((s, l) => s + l.units.length, 0);
 console.log(`\nСлов: ${WORDS.length}, тем: ${units}, предложений: ${LESSONS.reduce((s, l) => s + l.sentenceList.length, 0)}, тренажёров: ${DRILLS.length}`);

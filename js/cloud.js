@@ -3,7 +3,7 @@
 //  Если firebase-config.js не заполнен — модуль просто выключен.
 // =====================================================================
 import { FIREBASE_CONFIG } from "./firebase-config.js";
-import { store, merge, readLocalProgress, clearLocalProgress } from "./store.js";
+import { store, merge, readLocalProgress, clearLocalProgress, localGet, localSet } from "./store.js";
 
 const SDK = "https://www.gstatic.com/firebasejs/10.12.2/";
 const NICK_DOMAIN = "@slovencina-a1.app"; // ник превращается в «почту» nick@slovencina-a1.app
@@ -49,10 +49,12 @@ export async function initCloud() {
     const a = app.initializeApp(FIREBASE_CONFIG);
     fb = { ...auth, ...fs, auth: auth.getAuth(a), db: fs.getFirestore(a) };
   } catch (e) {
-    // нет интернета при первой загрузке — работаем локально
+    // нет интернета — работаем локально. Если на этом устройстве уже входили в аккаунт,
+    // открываем ЕГО локальную копию (а не гостевую), чтобы ученик не увидел «пустой» прогресс.
+    // Всё, что он сделает офлайн, сохранится под его uid и уйдёт в облако при следующем входе.
     console.warn("Firebase не загрузился", e);
     cloud.enabled = false;
-    store.load("guest");
+    store.load(localGet("lastUid") || "guest");
     cloud.ready = true; cloud.emit();
     return;
   }
@@ -69,11 +71,13 @@ export async function initCloud() {
   fb.onAuthStateChanged(fb.auth, async (user) => {
     if (user) {
       cloud.user = { uid: user.uid, nick: displayNick(user) };
+      localSet("lastUid", user.uid); // для работы без интернета (см. выше)
       // сразу показываем то, что есть локально по этому аккаунту
       store.load(user.uid);
       await pullAndMerge(true);
     } else {
       cloud.user = null;
+      localSet("lastUid", null);
       store.load("guest");
     }
     if (first) { first = false; cloud.ready = true; }

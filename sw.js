@@ -1,6 +1,6 @@
 // Офлайн-режим: сначала сеть, если её нет — кэш.
 // При изменениях сайта поменяй версию, чтобы старый кэш удалился.
-const CACHE = "slovencina-v12";
+const CACHE = "slovencina-v13";
 const FILES = [
   "./", "index.html", "css/style.css", "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png",
   "js/app.js", "js/data.js", "js/grammar.js", "js/store.js", "js/cloud.js", "js/session.js",
@@ -24,8 +24,11 @@ self.addEventListener("fetch", (e) => {
   e.respondWith(
     fetch(e.request, fresh ? { cache: "no-cache" } : undefined)
       .then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(e.request, copy));
+        // в кэш — только целые удачные ответы (не 404 и не куски аудио 206)
+        if (res.status === 200) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
+        }
         return res;
       })
       .catch(() => caches.match(e.request).then((r) => r || caches.match("index.html")))

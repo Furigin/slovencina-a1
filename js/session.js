@@ -91,6 +91,18 @@ function wordTask(w, level = null) {
   return { type: "type", word: w };
 }
 
+// Для «найди пары» убираем слова с общим переводом (Ahoj! и Čau! — оба «Привет!»):
+// иначе непонятно, какую пару ждёт задание.
+function matchSet(words) {
+  const usedTr = new Set(), usedSk = new Set();
+  return words.filter((w) => {
+    const keys = mainTr(trW(w)).split(/[,;/]/).map((x) => x.trim()).filter(Boolean);
+    if (usedSk.has(norm(w.sk)) || keys.some((k) => usedTr.has(k))) return false;
+    keys.forEach((k) => usedTr.add(k)); usedSk.add(norm(w.sk));
+    return true;
+  });
+}
+
 export function buildUnitSession(unit) {
   const list = unit.list;
   const fresh = list.filter((w) => !store.word(w.id));
@@ -110,7 +122,7 @@ export function buildUnitSession(unit) {
   }
   // дальше всё вперемешку: старые слова, закрепление новых и «найди пары»
   const tail = shuffle([...seen.map((w) => wordTask(w)), ...newOnes.map((w) => wordTask(w, 2))]);
-  const forMatch = shuffle([...newOnes, ...seen]).slice(0, 5);
+  const forMatch = matchSet(shuffle([...newOnes, ...seen])).slice(0, 5);
   if (forMatch.length >= 4) tail.splice(Math.floor(Math.random() * (tail.length + 1)), 0, { type: "match", words: forMatch });
   items.push(...tail);
   return { kind: "unit", id: unit.id, title: `${unit.icon} ${tr(unit)}`, items };
@@ -119,7 +131,8 @@ export function buildUnitSession(unit) {
 export function buildReviewSession(words) {
   const list = words.slice(0, 15);
   const items = shuffle(list).map((w) => wordTask(w));
-  if (list.length >= 5) items.splice(Math.min(4, items.length), 0, { type: "match", words: shuffle(list).slice(0, 5) });
+  const forMatch = matchSet(shuffle(list)).slice(0, 5);
+  if (forMatch.length >= 4) items.splice(Math.min(4, items.length), 0, { type: "match", words: forMatch });
   return { kind: "review", id: "review", title: t("reviewTitle"), items };
 }
 
@@ -490,7 +503,7 @@ export function runSession(root, session, onDone) {
     q(it) {
       const q = it.q;
       // в контрольной чаще просим ввести форму вручную
-      const typed = q.forceTyped || (q.typed && (!q.options || Math.random() < (session.noRetry ? 0.8 : 0.5)));
+      const typed = q.forceTyped || (q.typed && (!q.options || q.options.length < 3 || Math.random() < (session.noRetry ? 0.8 : 0.5)));
       body.innerHTML = `
         <div class="ex-label">${esc(typed ? t("grammarType") : t("grammarQ"))}</div>
         <div class="prompt grammar"><span>${esc(q.prompt)}</span>${q.hint ? `<small>${esc(tr(q.hint))}</small>` : ""}</div>
